@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "hypothesis-array-api"
+version = "0.1.0"
+description = ""
+authors = ["Matthew Barber <quitesimplymatt@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.6"
+hypothesis = "^6.14.1"
+
+[tool.poetry.dev-dependencies]
+pytest = "^6.2.4"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
