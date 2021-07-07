@@ -3,13 +3,16 @@ name = "hypothesis-array-api"
 version = "0.1.0"
 description = ""
 authors = ["Matthew Barber <quitesimplymatt@gmail.com>"]
+packages = [{include = "hypothesis_array.py"}]
 
 [tool.poetry.dependencies]
-python = "^3.6"
+python = "^3.7"
 hypothesis = "^6.14.1"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.4"
+numpy = "^1.21.0"
+torch = "^1.9.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
