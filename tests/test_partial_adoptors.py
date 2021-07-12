@@ -5,7 +5,7 @@ from hypothesis import strategies as st
 from hypothesis import given, assume
 import numpy as np
 
-import hypothesis_array as aast
+import hypothesis_array as amst
 
 T = TypeVar("T")
 
@@ -40,18 +40,18 @@ def create_array_module(name_dtype_pairs: Tuple[Tuple[str, T], ...]):
         finfo=np.finfo
         asarray=np.asarray
 
-    aa = ArrayModule()
+    array_module = ArrayModule()
 
     for dtype_name, dtype in name_dtype_pairs:
-        setattr(aa, dtype_name, dtype)
+        setattr(array_module, dtype_name, dtype)
 
-    return aa
+    return array_module
 
 @given(dtype_maps(), st.data())
 def test_inferred_dtype_strategies(dtype_map, data):
     name_dtype_pairs = tuple(dtype_map.items())
-    aast.aa = create_array_module(name_dtype_pairs)
+    amst.array_module = create_array_module(name_dtype_pairs)
 
     for dtype_name, dtype in name_dtype_pairs:
-        strategy = aast.from_dtype(dtype)
+        strategy = amst.from_dtype(dtype)
         assert isinstance(data.draw(strategy), dtype)

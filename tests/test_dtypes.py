@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from pytest import mark
 
-import hypothesis_array as aast
+import hypothesis_array as amst
 
 # array api dtypes:
 # - int8
@@ -41,14 +41,14 @@ _module_dtypes = {
     ],
 }
 module_dtypes = []
-for aa, dtypes in _module_dtypes.items():
+for array_module, dtypes in _module_dtypes.items():
     for dtype in dtypes:
-        module_dtypes.append((aa, dtype))
+        module_dtypes.append((array_module, dtype))
 
-@mark.parametrize("aa, dtype", module_dtypes)
-def test_strategy_inference(aa, dtype):
-    aast.aa = aa
-    strategy = aast.from_dtype(dtype)
+@mark.parametrize("array_module, dtype", module_dtypes)
+def test_strategy_inference(array_module, dtype):
+    amst.array_module = array_module
+    strategy = amst.from_dtype(dtype)
 
     assert isinstance(strategy.example(), dtype)
     # TODO check all draws of a typical strategy run

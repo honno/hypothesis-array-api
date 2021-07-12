@@ -1,32 +1,67 @@
-from typing import TypeVar, Callable
+from functools import wraps
+from typing import TypeVar, Callable, List, Any
+from dataclasses import dataclass, field
 
 from hypothesis import strategies as st
 
-aa = None  # monkey patch this as the array module for now
+array_module = None  # monkey patch this as the array module for now
 
 T = TypeVar("T")
 
-def from_dtype(dtype: T) -> st.SearchStrategy[T]:
-    if dtype == aa.bool:
+@dataclass
+class ArrayModuleWrapper:
+    am: Any
+    attr_misses: List[str] = field(default_factory=list)
+
+    def __getattr__(self, name: str) -> Any:
+        try:
+            return getattr(self.am, name)
+        except AttributeError:
+            self.attr_misses.append(name)
+            return None
+
+def stub_array_module(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        if array_module is None:
+            raise Exception("'array_module' needs to be monkey patched")
+
+        amw = ArrayModuleWrapper(array_module)
+
+        return func(amw, *args, **kwargs)
+
+    return wrapper
+
+def check_am_attr(amw: ArrayModuleWrapper, attr: str):
+    if not hasattr(amw.am, attr):
+        raise AttributeError(
+            f"array module '{awm.am}' does not have required attribute '{attr}'"
+        )
+
+@stub_array_module
+def from_dtype(amw: ArrayModuleWrapper, dtype: T) -> st.SearchStrategy[T]:
+    check_am_attr(amw, "asarray")
+
+    if dtype == amw.bool:
         base_strategy = st.booleans()
-        dtype_name = "bool"
-    elif dtype in (aa.int8, aa.int16, aa.int32, aa.int64):
-        iinfo = aa.iinfo(dtype)
+        dtype_namwe = "bool"
+    elif dtype in (amw.int8, amw.int16, amw.int32, amw.int64):
+        iinfo = amw.iinfo(dtype)
         base_strategy = st.integers(min_value=iinfo.min, max_value=iinfo.max)
-        dtype_name = f"int{iinfo.bits}"
-    elif dtype in (aa.uint8, aa.uint16, aa.uint32, aa.uint64):
-        iinfo = aa.iinfo(dtype)
+        dtype_namwe = f"int{iinfo.bits}"
+    elif dtype in (amw.uint8, amw.uint16, amw.uint32, amw.uint64):
+        iinfo = amw.iinfo(dtype)
         base_strategy = st.integers(min_value=iinfo.min, max_value=iinfo.max)
-        dtype_name = f"uint{iinfo.bits}"
-    elif dtype in (aa.float32, aa.float64):
-        finfo = aa.finfo(dtype)
+        dtype_namwe = f"uint{iinfo.bits}"
+    elif dtype in (amw.float32, amw.float64):
+        finfo = amw.finfo(dtype)
         base_strategy = st.floats(min_value=finfo.min, max_value=finfo.max)
-        dtype_name = f"float{finfo.bits}"
+        dtype_namwe = f"float{finfo.bits}"
     else:
         raise NotImplementedError()
 
     def dtype_mapper(x):
-        array = aa.asarray([x], dtype=dtype_name)
+        array = amw.asarray([x], dtype=dtype_namwe)
         return array[0]
 
     return base_strategy.map(dtype_mapper)
