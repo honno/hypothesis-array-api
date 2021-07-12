@@ -33,18 +33,11 @@ _module_dtypes = {
         np.float64,
     ],
     torch: [
-        # not supported:
+        # asarray() not supported
+        # also following dtypes not supported:
         # - torch.uint16
         # - torch.uint32
         # - torch.uint64
-        torch.int8,
-        torch.int16,
-        torch.int32,
-        torch.int64,
-        torch.uint8,
-        torch.float32,
-        torch.float64,
-        torch.bool,
     ],
 }
 module_dtypes = []
