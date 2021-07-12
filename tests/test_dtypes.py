@@ -4,19 +4,7 @@ from pytest import mark
 
 import hypothesis_array as amst
 
-# array api dtypes:
-# - int8
-# - int16
-# - int32
-# - int64
-# - uint8
-# - uint16
-# - uint32
-# - uint64
-# - float32
-# - float64
-# - bool
-
+from hypothesis import given
 
 _module_dtypes = {
     np: [
@@ -50,5 +38,8 @@ def test_strategy_inference(array_module, dtype):
     amst.array_module = array_module
     strategy = amst.from_dtype(dtype)
 
-    assert isinstance(strategy.example(), dtype)
-    # TODO check all draws of a typical strategy run
+    @given(strategy)
+    def test(value):
+        assert isinstance(value, dtype)
+
+    test()
