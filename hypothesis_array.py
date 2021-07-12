@@ -11,6 +11,10 @@ def from_dtype(dtype: T) -> st.SearchStrategy[T]:
         iinfo = aa.iinfo(dtype)
         base_strategy = st.integers(min_value=iinfo.min, max_value=iinfo.max)
         dtype_name = f"int{iinfo.bits}"
+    elif dtype in (aa.uint8, aa.uint16, aa.uint32, aa.uint64):
+        iinfo = aa.iinfo(dtype)
+        base_strategy = st.integers(min_value=iinfo.min, max_value=iinfo.max)
+        dtype_name = f"uint{iinfo.bits}"
     elif dtype in (aa.float32, aa.float64):
         finfo = aa.finfo(dtype)
         base_strategy = st.floats(min_value=finfo.min, max_value=finfo.max)
