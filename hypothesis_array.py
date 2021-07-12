@@ -7,7 +7,10 @@ aa = None  # monkey patch this as the array module for now
 T = TypeVar("T")
 
 def from_dtype(dtype: T) -> st.SearchStrategy[T]:
-    if dtype in (aa.int8, aa.int16, aa.int32, aa.int64):
+    if dtype == aa.bool:
+        base_strategy = st.booleans()
+        dtype_name = "bool"
+    elif dtype in (aa.int8, aa.int16, aa.int32, aa.int64):
         iinfo = aa.iinfo(dtype)
         base_strategy = st.integers(min_value=iinfo.min, max_value=iinfo.max)
         dtype_name = f"int{iinfo.bits}"
@@ -19,8 +22,6 @@ def from_dtype(dtype: T) -> st.SearchStrategy[T]:
         finfo = aa.finfo(dtype)
         base_strategy = st.floats(min_value=finfo.min, max_value=finfo.max)
         dtype_name = f"float{finfo.bits}"
-    elif dtype == aa.bool:
-        raise NotImplementedError("'asarray(x, dtype=\"bool\")' outputs Python's bool")
     else:
         raise NotImplementedError()
 
