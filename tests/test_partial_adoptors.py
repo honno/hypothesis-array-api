@@ -37,6 +37,7 @@ def dtype_maps(draw) -> st.SearchStrategy[Dict[str, T]]:
 @lru_cache()
 def create_array_module(attrvals: Tuple[Tuple[str, Any], ...]):
     class ArrayModule:
+        __name__="mockpy"
         iinfo=np.iinfo
         finfo=np.finfo
         asarray=np.asarray
@@ -56,11 +57,9 @@ def test_inferred_dtype_strategies(dtype_map, data):
     for dtype_name, dtype in name_dtype_pairs:
         amst.from_dtype(dtype)  # just smoke testing for errors
 
-
 def test_error_on_missing_attr():
     class ArrayModule:
-        def __str__(self):
-            return "foo"
+        __name__="foo"
     amst.array_module = ArrayModule()
     with raises(
             AttributeError,

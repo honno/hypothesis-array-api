@@ -1,8 +1,11 @@
-from functools import wraps
+from functools import wraps, lru_cache
 from typing import TypeVar, Callable, List, Any
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
+from warnings import warn
 
 from hypothesis import strategies as st
+
+__all__ = ["from_dtype"]
 
 array_module = None  # monkey patch this as the array module for now
 
@@ -13,12 +16,29 @@ class ArrayModuleWrapper:
     _am: Any
     _attr_misses: List[str] = field(default_factory=list)
 
+    def __post_init__(self):
+        for field in fields(self):
+            if hasattr(self._am, field.name):
+                raise NotImplementedError()  # TODO allow for shared attribute names
+
     def __getattr__(self, name: str) -> Any:
+        try:
+            return self.__dict__[name]
+        except KeyError:
+            pass
+
         try:
             return getattr(self._am, name)
         except AttributeError:
             self._attr_misses.append(name)
-            return None
+            return None  # TODO return object that has no equality with anything
+
+    @property
+    def name(self) -> str:
+        try:
+            return self._am.__name__
+        except AttributeError:
+            return str(self._am)
 
 def stub_array_module(func):
     @wraps(func)
@@ -35,11 +55,14 @@ def stub_array_module(func):
 def check_am_attr(amw: ArrayModuleWrapper, attr: str):
     if not hasattr(amw._am, attr):
         raise AttributeError(
-            f"array module '{amw._am}' does not have required attribute '{attr}'"
+            f"array module '{amw.name}' does not have required attribute '{attr}'"
         )
 
 @stub_array_module
 def from_dtype(amw: ArrayModuleWrapper, dtype: T) -> st.SearchStrategy[T]:
+    if amw.name != "numpy":
+        warn(f"Non-array scalars may not be supported by '{amw.name}'", UserWarning)
+
     check_am_attr(amw, "asarray")
 
     if dtype == amw.bool:
