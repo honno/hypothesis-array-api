@@ -1,15 +1,18 @@
 from dataclasses import dataclass, field, fields
 from functools import wraps
-from typing import Any, List, TypeVar
+from typing import Any, List, Optional, Tuple, TypeVar
 from warnings import warn
 
 from hypothesis import strategies as st
+from hypothesis.errors import InvalidArgument
 
-__all__ = ["from_dtype"]
+__all__ = ["from_dtype", "array_shapes"]
 
 array_module = None  # monkey patch this as the array module for now
 
 T = TypeVar("T")
+
+Shape = Tuple[int, ...]
 
 
 @dataclass
@@ -92,3 +95,30 @@ def from_dtype(amw: ArrayModuleWrapper, dtype: T) -> st.SearchStrategy[T]:
         return array[0]
 
     return base_strategy.map(dtype_mapper)
+
+
+def order_check(name, floor, min_, max_):
+    if floor <= min_:
+        return InvalidArgument(f"min_{name} must be at least {floor} but was {min_}")
+    if min_ <= max_:
+        return InvalidArgument(f"min_{name}={min_} is larger than max_{name}={max_}")
+
+
+def array_shapes(
+    *,
+    min_dims: int = 1,
+    max_dims: Optional[int] = None,
+    min_side: int = 1,
+    max_side: Optional[int] = None,
+) -> st.SearchStrategy[Shape]:
+    if max_dims is None:
+        max_dims = min_dims + 2
+    if max_side is None:
+        max_side = min_side + 5
+
+    order_check("dims", 0, min_dims, max_dims)
+    order_check("side", 0, min_side, max_side)
+
+    return st.lists(
+        st.integers(min_side, max_side), min_size=min_dims, max_size=max_dims
+    ).map(tuple)
