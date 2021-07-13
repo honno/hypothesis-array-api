@@ -4,6 +4,7 @@ from functools import lru_cache
 from hypothesis import strategies as st
 from hypothesis import given, assume
 import numpy as np
+from pytest import raises
 
 import hypothesis_array as amst
 
@@ -54,3 +55,16 @@ def test_inferred_dtype_strategies(dtype_map, data):
 
     for dtype_name, dtype in name_dtype_pairs:
         amst.from_dtype(dtype)  # just smoke testing for errors
+
+
+def test_error_on_missing_attr():
+    class ArrayModule:
+        def __str__(self):
+            return "foo"
+    amst.array_module = ArrayModule()
+    with raises(
+            AttributeError,
+            match="array module 'foo' does not have required attribute 'asarray'"
+    ):
+        amst.from_dtype(None)
+
