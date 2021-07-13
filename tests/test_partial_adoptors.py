@@ -1,9 +1,9 @@
-from typing import List, Dict, Tuple, TypeVar, Any
 from functools import lru_cache
+from typing import Any, Dict, Tuple, TypeVar
 
-from hypothesis import strategies as st
-from hypothesis import given, assume
 import numpy as np
+from hypothesis import given
+from hypothesis import strategies as st
 from pytest import raises
 
 import hypothesis_array as amst
@@ -24,6 +24,7 @@ complete_dtype_map = {
     "bool": np.bool_,
 }
 
+
 @st.composite
 def dtype_maps(draw) -> st.SearchStrategy[Dict[str, T]]:
     booleans = st.booleans()
@@ -34,13 +35,14 @@ def dtype_maps(draw) -> st.SearchStrategy[Dict[str, T]]:
 
     return dtype_map
 
+
 @lru_cache()
 def create_array_module(attrvals: Tuple[Tuple[str, Any], ...]):
     class ArrayModule:
-        __name__="mockpy"
-        iinfo=np.iinfo
-        finfo=np.finfo
-        asarray=np.asarray
+        __name__ = "mockpy"
+        iinfo = np.iinfo
+        finfo = np.finfo
+        asarray = np.asarray
 
     array_module = ArrayModule()
 
@@ -48,6 +50,7 @@ def create_array_module(attrvals: Tuple[Tuple[str, Any], ...]):
         setattr(array_module, attr, value)
 
     return array_module
+
 
 @given(dtype_maps(), st.data())
 def test_inferred_dtype_strategies(dtype_map, data):
@@ -57,13 +60,13 @@ def test_inferred_dtype_strategies(dtype_map, data):
     for dtype_name, dtype in name_dtype_pairs:
         amst.from_dtype(dtype)  # just smoke testing for errors
 
+
 def test_error_on_missing_attr():
     class ArrayModule:
-        __name__="foo"
+        __name__ = "foo"
     amst.array_module = ArrayModule()
     with raises(
             AttributeError,
             match="array module 'foo' does not have required attribute 'asarray'"
     ):
         amst.from_dtype(None)
-

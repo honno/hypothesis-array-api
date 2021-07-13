@@ -1,10 +1,9 @@
 import numpy as np
 import torch
+from hypothesis import given
 from pytest import mark
 
 import hypothesis_array as amst
-
-from hypothesis import given
 
 _module_dtypes = {
     np: [
@@ -32,6 +31,7 @@ module_dtypes = []
 for array_module, dtypes in _module_dtypes.items():
     for dtype in dtypes:
         module_dtypes.append((array_module, dtype))
+
 
 @mark.parametrize("array_module, dtype", module_dtypes)
 def test_strategy_inference(array_module, dtype):

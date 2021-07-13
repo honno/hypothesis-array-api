@@ -1,6 +1,6 @@
-from functools import wraps, lru_cache
-from typing import TypeVar, Callable, List, Any
 from dataclasses import dataclass, field, fields
+from functools import wraps
+from typing import Any, List, TypeVar
 from warnings import warn
 
 from hypothesis import strategies as st
@@ -11,14 +11,15 @@ array_module = None  # monkey patch this as the array module for now
 
 T = TypeVar("T")
 
+
 @dataclass
 class ArrayModuleWrapper:
     _am: Any
     _attr_misses: List[str] = field(default_factory=list)
 
     def __post_init__(self):
-        for field in fields(self):
-            if hasattr(self._am, field.name):
+        for field_ in fields(self):
+            if hasattr(self._am, field_.name):
                 raise NotImplementedError()  # TODO allow for shared attribute names
 
     def __getattr__(self, name: str) -> Any:
@@ -40,6 +41,7 @@ class ArrayModuleWrapper:
         except AttributeError:
             return str(self._am)
 
+
 def stub_array_module(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
@@ -52,11 +54,13 @@ def stub_array_module(func):
 
     return wrapper
 
+
 def check_am_attr(amw: ArrayModuleWrapper, attr: str):
     if not hasattr(amw._am, attr):
         raise AttributeError(
             f"array module '{amw.name}' does not have required attribute '{attr}'"
         )
+
 
 @stub_array_module
 def from_dtype(amw: ArrayModuleWrapper, dtype: T) -> st.SearchStrategy[T]:
