@@ -6,7 +6,15 @@ from warnings import warn
 from hypothesis import strategies as st
 from hypothesis.errors import InvalidArgument
 
-__all__ = ["from_dtype", "array_shapes"]
+__all__ = [
+    "from_dtype",
+    "array_shapes",
+    "scalar_names",
+    "boolean_names",
+    "integer_names",
+    "unsigned_integer_names",
+    "floating_names",
+]
 
 array_module = None  # monkey patch this as the array module for now
 
@@ -122,3 +130,28 @@ def array_shapes(
     return st.lists(
         st.integers(min_side, max_side), min_size=min_dims, max_size=max_dims
     ).map(tuple)
+
+
+def scalar_names() -> st.SearchStrategy[str]:
+    return st.one_of(
+        boolean_names(),
+        integer_names(),
+        unsigned_integer_names(),
+        floating_names(),
+    )
+
+
+def boolean_names() -> st.SearchStrategy[str]:
+    return st.just("bool")
+
+
+def integer_names() -> st.SearchStrategy[str]:
+    return st.sampled_from(["int8", "int16", "int32", "int64"])
+
+
+def unsigned_integer_names() -> st.SearchStrategy[str]:
+    return st.sampled_from(["uint8", "uint16", "uint32", "uint64"])
+
+
+def floating_names() -> st.SearchStrategy[str]:
+    return st.sampled_from(["float32", "float64"])
