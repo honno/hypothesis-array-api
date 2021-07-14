@@ -1,28 +1,14 @@
-from functools import lru_cache
-from typing import Any, Dict, Tuple, TypeVar
+from typing import Dict, TypeVar
 
-import numpy as np
 from hypothesis import given
 from hypothesis import strategies as st
 from pytest import raises
 
 import hypothesis_array as amst
 
-T = TypeVar("T")
+from .array_module_utils import complete_dtype_map, create_array_module
 
-complete_dtype_map = {
-    "int8": np.int8,
-    "int16": np.int16,
-    "int32": np.int32,
-    "int64": np.int64,
-    "uint8": np.uint8,
-    "uint16": np.uint16,
-    "uint32": np.uint32,
-    "uint64": np.uint64,
-    "float32": np.float32,
-    "float64": np.float64,
-    "bool": np.bool_,
-}
+T = TypeVar("T")
 
 
 @st.composite
@@ -36,29 +22,13 @@ def dtype_maps(draw) -> st.SearchStrategy[Dict[str, T]]:
     return dtype_map
 
 
-@lru_cache()
-def create_array_module(attrvals: Tuple[Tuple[str, Any], ...]):
-    class ArrayModule:
-        __name__ = "mockpy"
-        iinfo = np.iinfo
-        finfo = np.finfo
-        asarray = np.asarray
-
-    array_module = ArrayModule()
-
-    for attr, value in attrvals:
-        setattr(array_module, attr, value)
-
-    return array_module
-
-
-@given(dtype_maps(), st.data())
-def test_inferred_dtype_strategies(dtype_map, data):
+@given(dtype_maps())
+def test_from_dtype(dtype_map):
     name_dtype_pairs = tuple(dtype_map.items())
     amst.array_module = create_array_module(name_dtype_pairs)
 
     for dtype_name, dtype in name_dtype_pairs:
-        amst.from_dtype(dtype)  # just smoke testing for errors
+        amst.from_dtype(dtype)
 
 
 def test_error_on_missing_attr():
@@ -67,6 +37,29 @@ def test_error_on_missing_attr():
     amst.array_module = ArrayModule()
     with raises(
             AttributeError,
-            match="array module 'foo' does not have required attribute 'asarray'"
+            match="'foo' does not have required attribute 'asarray'"
     ):
         amst.from_dtype(None)
+
+
+@given(dtype_maps())
+def test_scalar_dtypes(dtype_map):
+    name_dtype_pairs = tuple(dtype_map.items())
+    amst.array_module = create_array_module(name_dtype_pairs)
+
+    if len(dtype_map) == 0:
+        with raises(amst.MissingDtypesError):
+            amst.scalar_dtypes()
+    else:
+        @given(amst.scalar_dtypes())
+        def test(dtype):
+            pass
+
+        test()
+
+
+# TODO test:
+#      - boolean_dtypes
+#      - integer_dtypes
+#      - unsigned_integer_dtypes
+#      - floating_dtypes
