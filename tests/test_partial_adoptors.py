@@ -15,6 +15,7 @@ T = TypeVar("T")
 def dtype_maps(draw) -> st.SearchStrategy[Dict[str, T]]:
     booleans = st.booleans()
     dtype_map = {}
+
     for dtype_name, dtype in complete_dtype_map.items():
         if draw(booleans):
             dtype_map[dtype_name] = dtype
@@ -50,6 +51,7 @@ def test_scalar_dtypes(dtype_map):
     if len(dtype_map) == 0:
         with raises(amst.MissingDtypesError):
             amst.scalar_dtypes()
+
     else:
         @given(amst.scalar_dtypes())
         def test(dtype):
@@ -58,8 +60,69 @@ def test_scalar_dtypes(dtype_map):
         test()
 
 
-# TODO test:
-#      - boolean_dtypes
-#      - integer_dtypes
-#      - unsigned_integer_dtypes
-#      - floating_dtypes
+@given(dtype_maps())
+def test_boolean_dtypes(dtype_map):
+    name_dtype_pairs = tuple(dtype_map.items())
+    amst.array_module = create_array_module(name_dtype_pairs)
+
+    if "bool" in dtype_map.keys():
+        @given(amst.boolean_dtypes())
+        def test(dtype):
+            pass
+
+        test()
+
+    else:
+        with raises(amst.MissingDtypesError):
+            amst.boolean_dtypes()
+
+
+@given(dtype_maps())
+def test_integer_dtypes(dtype_map):
+    name_dtype_pairs = tuple(dtype_map.items())
+    amst.array_module = create_array_module(name_dtype_pairs)
+
+    if any(name in dtype_map.keys() for name in amst.DTYPE_NAMES["ints"]):
+        @given(amst.integer_dtypes())
+        def test(dtype):
+            pass
+
+        test()
+
+    else:
+        with raises(amst.MissingDtypesError):
+            amst.integer_dtypes()
+
+
+@given(dtype_maps())
+def test_unsigned_integer_dtypes(dtype_map):
+    name_dtype_pairs = tuple(dtype_map.items())
+    amst.array_module = create_array_module(name_dtype_pairs)
+
+    if any(name in dtype_map.keys() for name in amst.DTYPE_NAMES["uints"]):
+        @given(amst.unsigned_integer_dtypes())
+        def test(dtype):
+            pass
+
+        test()
+
+    else:
+        with raises(amst.MissingDtypesError):
+            amst.unsigned_integer_dtypes()
+
+
+@given(dtype_maps())
+def test_floating_dtypes(dtype_map):
+    name_dtype_pairs = tuple(dtype_map.items())
+    amst.array_module = create_array_module(name_dtype_pairs)
+
+    if any(name in dtype_map.keys() for name in amst.DTYPE_NAMES["floats"]):
+        @given(amst.floating_dtypes())
+        def test(dtype):
+            pass
+
+        test()
+
+    else:
+        with raises(amst.MissingDtypesError):
+            amst.floating_dtypes()

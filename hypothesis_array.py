@@ -31,12 +31,15 @@ DTYPE_NAMES = {
     "floats": ["float32", "float64"],
 }
 
+
 Boolean = TypeVar("Boolean")
 SignedInteger = TypeVar("SignedInteger")
 UnsignedInteger = TypeVar("UnsignedInteger")
 Float = TypeVar("Float")
 DataType = Union[Boolean, SignedInteger, UnsignedInteger, Float]
 
+
+T = TypeVar("T")
 Shape = Tuple[int, ...]
 
 
@@ -67,8 +70,8 @@ class ArrayModuleWrapper:
 
 
 def partition_stubs(
-    iterable: Iterable[Union[Any, Stub]]
-) -> Tuple[List[Any], List[Stub]]:
+    iterable: Iterable[Union[T, Stub]]
+) -> Tuple[List[T], List[Stub]]:
     it1, it2 = tee(iterable)
     non_stubs = [x for x in it1 if not isinstance(x, Stub)]
     stubs = [x for x in it2 if isinstance(x, Stub)]
