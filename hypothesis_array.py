@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from functools import wraps
+from functools import lru_cache, wraps
 from itertools import tee
 from typing import Any, Iterable, List, Optional, Tuple, TypeVar, Union
 from warnings import warn
@@ -92,7 +92,7 @@ def wrap_array_module(func):
     return wrapper
 
 
-def check_am_attr(amw: ArrayModuleWrapper, attr: str):
+def check_attr(amw: ArrayModuleWrapper, attr: str):
     if not hasattr(amw.am, attr):
         raise AttributeError(
             f"Array module '{amw}' does not have required attribute '{attr}'"
@@ -225,28 +225,25 @@ def from_dtype(amw: ArrayModuleWrapper, dtype: DataType) -> st.SearchStrategy[Da
     if str(amw) != "numpy":
         warn(f"Non-array scalars may not be supported by '{amw}'", UserWarning)
 
-    check_am_attr(amw, "asarray")
+    check_attr(amw, "asarray")
 
     if dtype == amw.bool:
         base_strategy = st.booleans()
-        dtype_name = "bool"
     elif dtype in (amw.int8, amw.int16, amw.int32, amw.int64):
         iinfo = amw.iinfo(dtype)
         base_strategy = st.integers(min_value=iinfo.min, max_value=iinfo.max)
-        dtype_name = f"int{iinfo.bits}"
     elif dtype in (amw.uint8, amw.uint16, amw.uint32, amw.uint64):
         iinfo = amw.iinfo(dtype)
         base_strategy = st.integers(min_value=iinfo.min, max_value=iinfo.max)
-        dtype_name = f"uint{iinfo.bits}"
     elif dtype in (amw.float32, amw.float64):
         finfo = amw.finfo(dtype)
         base_strategy = st.floats(min_value=finfo.min, max_value=finfo.max)
-        dtype_name = f"float{finfo.bits}"
     else:
         raise NotImplementedError()
 
+    @lru_cache()  # TODO only cache after checking if things are hashable first
     def dtype_mapper(x):
-        array = amw.asarray([x], dtype=dtype_name)
+        array = amw.asarray([x], dtype=dtype)
         return array[0]
 
     return base_strategy.map(dtype_mapper)
