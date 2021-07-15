@@ -15,10 +15,25 @@ def test_can_generate_array_shapes(shape):
 
 
 @given(amst.scalar_dtypes())
-def test_can_generate_dtypes(dtype):
-    assert dtype in [
-        am.bool,
-        am.int8, am.int16, am.int32, am.int64,
-        am.uint8, am.uint16, am.uint32, am.uint64,
-        am.float32, am.float64,
-    ]
+def test_can_generate_scalar_dtypes(dtype):
+    assert dtype in (getattr(am, name) for name in amst.DTYPE_NAMES["all"])
+
+
+@given(amst.boolean_dtypes())
+def test_can_generate_boolean_dtypes(dtype):
+    assert dtype == am.bool
+
+
+@given(amst.integer_dtypes())
+def test_can_generate_integer_dtypes(dtype):
+    assert dtype in (getattr(am, name) for name in amst.DTYPE_NAMES["ints"])
+
+
+@given(amst.unsigned_integer_dtypes())
+def test_can_generate_unsigned_integer_dtypes(dtype):
+    assert dtype in (getattr(am, name) for name in amst.DTYPE_NAMES["uints"])
+
+
+@given(amst.floating_dtypes())
+def test_can_generate_floating_dtypes(dtype):
+    assert dtype in (getattr(am, name) for name in amst.DTYPE_NAMES["floats"])
