@@ -222,7 +222,7 @@ def floating_dtypes(amw: ArrayModuleWrapper) -> st.SearchStrategy[Float]:
 
 @wrap_array_module
 def from_dtype(amw: ArrayModuleWrapper, dtype: DataType) -> st.SearchStrategy[DataType]:
-    if amw.name != "numpy":
+    if str(amw) != "numpy":
         warn(f"Non-array scalars may not be supported by '{amw}'", UserWarning)
 
     check_am_attr(amw, "asarray")
