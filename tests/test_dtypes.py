@@ -1,3 +1,6 @@
+from functools import lru_cache
+from typing import Union
+
 import numpy as np
 import torch
 from hypothesis import given
@@ -5,19 +8,19 @@ from pytest import mark
 
 import hypothesis_array as amst
 
-_module_dtypes = {
+_am_supported_dtypes = {
     np: [
         # bool namespace is not the NumPy scalar np.bool_
-        np.int8,
-        np.int16,
-        np.int32,
-        np.int64,
-        np.uint8,
-        np.uint16,
-        np.uint32,
-        np.uint64,
-        np.float32,
-        np.float64,
+        "int8",
+        "int16",
+        "int32",
+        "int64",
+        "uint8",
+        "uint16",
+        "uint32",
+        "uint64",
+        "float32",
+        "float64",
     ],
     torch: [
         # asarray() not supported
@@ -27,19 +30,32 @@ _module_dtypes = {
         # - torch.uint64
     ],
 }
-module_dtypes = []
-for array_module, dtypes in _module_dtypes.items():
+am_supported_dtypes = []
+for am, dtypes in _am_supported_dtypes.items():
     for dtype in dtypes:
-        module_dtypes.append((array_module, dtype))
+        am_supported_dtypes.append((am, dtype))
 
 
-@mark.parametrize("array_module, dtype", module_dtypes)
-def test_strategy_inference(array_module, dtype):
-    amst.array_module = array_module
+@lru_cache()
+def builtin_from_dtype_name(name: str) -> Union[bool, int, float]:
+    if name == "bool":
+        return bool
+    elif name in amst.DTYPE_NAMES["ints"] or name in amst.DTYPE_NAMES["uints"]:
+        return int
+    elif name in amst.DTYPE_NAMES["floats"]:
+        return float
+    raise ValueError()
+
+
+@mark.parametrize("am, dtype_name", am_supported_dtypes)
+def test_strategy_inference(am, dtype_name):
+    builtin = builtin_from_dtype_name(dtype_name)
+    dtype = getattr(am, dtype_name)
+    amst.array_module = am
     strategy = amst.from_dtype(dtype)
 
     @given(strategy)
     def test(value):
-        assert isinstance(value, dtype)
+        assert isinstance(value, builtin)
 
     test()

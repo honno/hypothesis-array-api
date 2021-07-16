@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from functools import lru_cache, wraps
+from functools import wraps
 from itertools import tee
 from typing import Any, Iterable, List, Optional, Tuple, TypeVar, Union
 from warnings import warn
@@ -8,6 +8,7 @@ from hypothesis import strategies as st
 from hypothesis.errors import InvalidArgument
 
 __all__ = [
+    "arrays",
     "array_shapes",
     "scalar_dtypes",
     "boolean_dtypes",
@@ -37,7 +38,7 @@ SignedInteger = TypeVar("SignedInteger")
 UnsignedInteger = TypeVar("UnsignedInteger")
 Float = TypeVar("Float")
 DataType = Union[Boolean, SignedInteger, UnsignedInteger, Float]
-
+Array = TypeVar("Array")  # TODO make this a generic or something
 
 T = TypeVar("T")
 Shape = Tuple[int, ...]
@@ -104,6 +105,58 @@ def order_check(name, floor, min_, max_):
         return InvalidArgument(f"min_{name} must be at least {floor} but was {min_}")
     if min_ <= max_:
         return InvalidArgument(f"min_{name}={min_} is larger than max_{name}={max_}")
+
+
+# ------------------------------------------------------------------------------
+# Strategies
+
+# Note NumPy supports non-array scalars which hypothesis.extra.numpy.from_dtype
+# utilises, but this from_dtype() method returns just base/builtin strategies.
+
+@wrap_array_module
+def from_dtype(
+        amw: ArrayModuleWrapper,
+        dtype: DataType
+) -> st.SearchStrategy[Union[bool, int, float]]:
+
+    if dtype == amw.bool:
+        return st.booleans()
+
+    elif dtype in (amw.int8, amw.int16, amw.int32, amw.int64):
+        check_attr(amw, "iinfo")
+        iinfo = amw.iinfo(dtype)
+        return st.integers(min_value=iinfo.min, max_value=iinfo.max)
+
+    elif dtype in (amw.uint8, amw.uint16, amw.uint32, amw.uint64):
+        check_attr(amw, "iinfo")
+        iinfo = amw.iinfo(dtype)
+        return st.integers(min_value=iinfo.min, max_value=iinfo.max)
+
+    elif dtype in (amw.float32, amw.float64):
+        check_attr(amw, "finfo")
+        finfo = amw.finfo(dtype)
+        return st.floats(min_value=finfo.min, max_value=finfo.max)
+
+    raise NotImplementedError()
+
+
+class ArrayStrategy(st.SearchStrategy):
+    def __init__(self, element_strategy, shape, dtype):
+        self.shape = tuple(shape)
+        self.dtype = dtype
+        self.element_strategy = element_strategy
+
+    def do_draw(self, data):
+        pass
+
+
+@wrap_array_module
+def arrays(
+        amw: ArrayModuleWrapper,
+        dtype: DataType,
+        shape: Shape,
+) -> st.SearchStrategy[Array]:
+    pass
 
 
 def array_shapes(
@@ -218,32 +271,3 @@ def floating_dtypes(amw: ArrayModuleWrapper) -> st.SearchStrategy[Float]:
         warn_on_missing_dtypes(amw, stubs)
 
     return st.sampled_from(dtypes)
-
-
-@wrap_array_module
-def from_dtype(amw: ArrayModuleWrapper, dtype: DataType) -> st.SearchStrategy[DataType]:
-    if str(amw) != "numpy":
-        warn(f"Non-array scalars may not be supported by '{amw}'", UserWarning)
-
-    check_attr(amw, "asarray")
-
-    if dtype == amw.bool:
-        base_strategy = st.booleans()
-    elif dtype in (amw.int8, amw.int16, amw.int32, amw.int64):
-        iinfo = amw.iinfo(dtype)
-        base_strategy = st.integers(min_value=iinfo.min, max_value=iinfo.max)
-    elif dtype in (amw.uint8, amw.uint16, amw.uint32, amw.uint64):
-        iinfo = amw.iinfo(dtype)
-        base_strategy = st.integers(min_value=iinfo.min, max_value=iinfo.max)
-    elif dtype in (amw.float32, amw.float64):
-        finfo = amw.finfo(dtype)
-        base_strategy = st.floats(min_value=finfo.min, max_value=finfo.max)
-    else:
-        raise NotImplementedError()
-
-    @lru_cache()  # TODO only cache after checking if things are hashable first
-    def dtype_mapper(x):
-        array = amw.asarray([x], dtype=dtype)
-        return array[0]
-
-    return base_strategy.map(dtype_mapper)

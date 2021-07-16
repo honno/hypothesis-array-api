@@ -35,12 +35,14 @@ def test_from_dtype(dtype_map):
 def test_error_on_missing_attr():
     class ArrayModule:
         __name__ = "foo"
-    amst.array_module = ArrayModule()
+        int8 = None
+    am = ArrayModule()
+    amst.array_module = am
     with raises(
             AttributeError,
-            match="'foo' does not have required attribute 'asarray'"
+            match="'foo' does not have required attribute 'iinfo'"
     ):
-        amst.from_dtype(None)
+        amst.from_dtype(am.int8)
 
 
 @given(dtype_maps())
