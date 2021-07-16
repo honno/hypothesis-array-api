@@ -116,7 +116,7 @@ def order_check(name, floor, min_, max_):
 @wrap_array_module
 def from_dtype(
         amw: ArrayModuleWrapper,
-        dtype: DataType
+        dtype: DataType,
 ) -> st.SearchStrategy[Union[bool, int, float]]:
 
     if dtype == amw.bool:
@@ -140,23 +140,25 @@ def from_dtype(
     raise NotImplementedError()
 
 
-class ArrayStrategy(st.SearchStrategy):
-    def __init__(self, element_strategy, shape, dtype):
-        self.shape = tuple(shape)
-        self.dtype = dtype
-        self.element_strategy = element_strategy
-
-    def do_draw(self, data):
-        pass
-
-
 @wrap_array_module
 def arrays(
         amw: ArrayModuleWrapper,
         dtype: DataType,
         shape: Shape,
 ) -> st.SearchStrategy[Array]:
-    pass
+    if len(shape) != 1:
+        raise NotImplementedError()
+
+    elements_st = from_dtype(dtype)
+
+    @st.composite
+    def strategy(draw) -> st.SearchStrategy[Array]:
+        elements = draw(st.lists(elements_st, min_size=shape[0], max_size=shape[0]))
+        array = amw.asarray(elements, dtype=dtype)
+
+        return array
+
+    return strategy()
 
 
 def array_shapes(

@@ -37,3 +37,11 @@ def test_can_generate_unsigned_integer_dtypes(dtype):
 @given(amst.floating_dtypes())
 def test_can_generate_floating_dtypes(dtype):
     assert dtype in (getattr(am, name) for name in amst.DTYPE_NAMES["floats"])
+
+
+@given(amst.arrays(dtype=am.bool, shape=(42,)))
+def test_can_generate_1d_arrays(array):
+    assert array.dtype == am.bool
+    assert array.ndim == 1
+    assert array.shape == (42,)
+    assert array.size == 42
