@@ -6,6 +6,7 @@ from warnings import warn
 
 from hypothesis import strategies as st
 from hypothesis.errors import InvalidArgument
+from hypothesis.internal.validation import check_type
 
 __all__ = [
     "arrays",
@@ -101,17 +102,14 @@ def check_attr(amw: ArrayModuleWrapper, attr: str):
 
 
 def order_check(name, floor, min_, max_):
-    if floor <= min_:
-        return InvalidArgument(f"min_{name} must be at least {floor} but was {min_}")
-    if min_ <= max_:
-        return InvalidArgument(f"min_{name}={min_} is larger than max_{name}={max_}")
+    if floor > min_:
+        raise InvalidArgument(f"min_{name} must be at least {floor} but was {min_}")
+    if min_ >= max_:
+        raise InvalidArgument(f"min_{name}={min_} is larger than max_{name}={max_}")
 
-
-# ------------------------------------------------------------------------------
-# Strategies
 
 # Note NumPy supports non-array scalars which hypothesis.extra.numpy.from_dtype
-# utilises, but this from_dtype() method returns just base/builtin strategies.
+# utilises, but this from_dtype() method returns just base strategies.
 
 @wrap_array_module
 def from_dtype(
@@ -168,11 +166,14 @@ def array_shapes(
     min_side: int = 1,
     max_side: Optional[int] = None,
 ) -> st.SearchStrategy[Shape]:
+    check_type(int, min_dims, "min_dims")
+    check_type(int, min_side, "min_side")
     if max_dims is None:
         max_dims = min_dims + 2
+    check_type(int, max_dims, "max_dims")
     if max_side is None:
         max_side = min_side + 5
-
+    check_type(int, max_side, "max_side")
     order_check("dims", 0, min_dims, max_dims)
     order_check("side", 0, min_side, max_side)
 
