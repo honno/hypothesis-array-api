@@ -6,7 +6,7 @@ import torch
 from hypothesis import given
 from pytest import mark
 
-import hypothesis_array as amst
+import hypothesis_array as xpst
 
 _am_supported_dtypes = {
     np: [
@@ -40,9 +40,9 @@ for am, dtypes in _am_supported_dtypes.items():
 def builtin_from_dtype_name(name: str) -> Union[bool, int, float]:
     if name == "bool":
         return bool
-    elif name in amst.DTYPE_NAMES["ints"] or name in amst.DTYPE_NAMES["uints"]:
+    elif name in xpst.DTYPE_NAMES["ints"] or name in xpst.DTYPE_NAMES["uints"]:
         return int
-    elif name in amst.DTYPE_NAMES["floats"]:
+    elif name in xpst.DTYPE_NAMES["floats"]:
         return float
     raise ValueError()
 
@@ -51,8 +51,8 @@ def builtin_from_dtype_name(name: str) -> Union[bool, int, float]:
 def test_strategy_inference(am, dtype_name):
     builtin = builtin_from_dtype_name(dtype_name)
     dtype = getattr(am, dtype_name)
-    amst.array_module = am
-    strategy = amst.from_dtype(dtype)
+    xpst.array_module = am
+    strategy = xpst.from_dtype(dtype)
 
     @given(strategy)
     def test(value):

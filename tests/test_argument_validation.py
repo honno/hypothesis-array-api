@@ -1,7 +1,7 @@
 from hypothesis.errors import InvalidArgument
 from pytest import mark, param, raises
 
-import hypothesis_array as amst
+import hypothesis_array as xpst
 
 
 def e(a, **kwargs):
@@ -12,14 +12,14 @@ def e(a, **kwargs):
 @mark.parametrize(
     ("function", "kwargs"),
     [
-        e(amst.array_shapes, min_side=2, max_side=1),
-        e(amst.array_shapes, min_dims=3, max_dims=2),
-        e(amst.array_shapes, min_dims=-1),
-        e(amst.array_shapes, min_side=-1),
-        e(amst.array_shapes, min_side="not an int"),
-        e(amst.array_shapes, max_side="not an int"),
-        e(amst.array_shapes, min_dims="not an int"),
-        e(amst.array_shapes, max_dims="not an int"),
+        e(xpst.array_shapes, min_side=2, max_side=1),
+        e(xpst.array_shapes, min_dims=3, max_dims=2),
+        e(xpst.array_shapes, min_dims=-1),
+        e(xpst.array_shapes, min_side=-1),
+        e(xpst.array_shapes, min_side="not an int"),
+        e(xpst.array_shapes, max_side="not an int"),
+        e(xpst.array_shapes, min_dims="not an int"),
+        e(xpst.array_shapes, max_dims="not an int"),
     ],
 )
 def test_raise_invalid_argument(function, kwargs):
