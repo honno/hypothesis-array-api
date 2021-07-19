@@ -51,24 +51,31 @@ class Stub(str):
 
 class ArrayModuleWrapper:
     def __init__(self, array_module: Any):
-        self.am = array_module
-        if hasattr(self.am, "am"):
-            warn(f"array module '{self}' has attribute 'am' which will be inaccessible")
+        try:
+            array = array_module.asarray([True], dtype=bool)
+            array.__array_namespace__()
+            self.xp = array_module
+        except AttributeError:
+            self.xp = array_module
+            warn(f"Could not determine whether module '{self}' is an Array API library")
+
+        if hasattr(self.xp, "xp"):
+            warn(f"Array module '{self}' has attribute 'xp' which will be inaccessible")
 
     def __getattr__(self, name: str) -> Any:
-        if name == "am":
-            return self.am
+        if name == "xp":
+            return self.xp
 
         try:
-            return getattr(self.am, name)
+            return getattr(self.xp, name)
         except AttributeError:
             return Stub(name)
 
     def __str__(self):
         try:
-            return self.am.__name__
+            return self.xp.__name__
         except AttributeError:
-            return str(self.am)
+            return str(self.xp)
 
 
 def partition_stubs(
@@ -87,17 +94,17 @@ def wrap_array_module(func):
         if array_module is None:
             raise Exception("'array_module' needs to be monkey patched.")
 
-        amw = ArrayModuleWrapper(array_module)
+        xpw = ArrayModuleWrapper(array_module)
 
-        return func(amw, *args, **kwargs)
+        return func(xpw, *args, **kwargs)
 
     return wrapper
 
 
-def check_attr(amw: ArrayModuleWrapper, attr: str):
-    if not hasattr(amw.am, attr):
+def check_attr(xpw: ArrayModuleWrapper, attr: str):
+    if not hasattr(xpw.xp, attr):
         raise AttributeError(
-            f"Array module '{amw}' does not have required attribute '{attr}'"
+            f"Array module '{xpw}' does not have required attribute '{attr}'"
         )
 
 
@@ -113,26 +120,26 @@ def order_check(name, floor, min_, max_):
 
 @wrap_array_module
 def from_dtype(
-        amw: ArrayModuleWrapper,
+        xpw: ArrayModuleWrapper,
         dtype: DataType,
 ) -> st.SearchStrategy[Union[bool, int, float]]:
 
-    if dtype == amw.bool:
+    if dtype == xpw.bool:
         return st.booleans()
 
-    elif dtype in (amw.int8, amw.int16, amw.int32, amw.int64):
-        check_attr(amw, "iinfo")
-        iinfo = amw.iinfo(dtype)
+    elif dtype in (xpw.int8, xpw.int16, xpw.int32, xpw.int64):
+        check_attr(xpw, "iinfo")
+        iinfo = xpw.iinfo(dtype)
         return st.integers(min_value=iinfo.min, max_value=iinfo.max)
 
-    elif dtype in (amw.uint8, amw.uint16, amw.uint32, amw.uint64):
-        check_attr(amw, "iinfo")
-        iinfo = amw.iinfo(dtype)
+    elif dtype in (xpw.uint8, xpw.uint16, xpw.uint32, xpw.uint64):
+        check_attr(xpw, "iinfo")
+        iinfo = xpw.iinfo(dtype)
         return st.integers(min_value=iinfo.min, max_value=iinfo.max)
 
-    elif dtype in (amw.float32, amw.float64):
-        check_attr(amw, "finfo")
-        finfo = amw.finfo(dtype)
+    elif dtype in (xpw.float32, xpw.float64):
+        check_attr(xpw, "finfo")
+        finfo = xpw.finfo(dtype)
         return st.floats(min_value=finfo.min, max_value=finfo.max)
 
     raise NotImplementedError()
@@ -140,7 +147,7 @@ def from_dtype(
 
 @wrap_array_module
 def arrays(
-        amw: ArrayModuleWrapper,
+        xpw: ArrayModuleWrapper,
         dtype: DataType,
         shape: Shape,
 ) -> st.SearchStrategy[Array]:
@@ -152,7 +159,7 @@ def arrays(
     @st.composite
     def strategy(draw) -> st.SearchStrategy[Array]:
         elements = draw(st.lists(elements_st, min_size=shape[0], max_size=shape[0]))
-        array = amw.asarray(elements, dtype=dtype)
+        array = xpw.asarray(elements, dtype=dtype)
 
         return array
 
@@ -189,88 +196,88 @@ def array_shapes(
 
 @dataclass
 class MissingDtypesError(AttributeError):
-    amw: ArrayModuleWrapper
+    xpw: ArrayModuleWrapper
     stubs: List[Stub]
 
     def __str__(self):
         f_stubs = ", ".join(f"'{stub}'" for stub in self.stubs)
         if len(self.stubs) == 1:
             return (
-                f"Array module '{self.amw}' does not have"
+                f"Array module '{self.xpw}' does not have"
                 f" the required dtype {f_stubs} in its namespace."
             )
         else:
             return (
-                f"Array module '{self.amw}' does not have"
+                f"Array module '{self.xpw}' does not have"
                 f" the following required dtypes in its namespace: {f_stubs}"
             )
 
 
-def warn_on_missing_dtypes(amw: ArrayModuleWrapper, stubs: List[Stub]):
+def warn_on_missing_dtypes(xpw: ArrayModuleWrapper, stubs: List[Stub]):
     f_stubs = ", ".join(f"'{stub}'" for stub in stubs)
     if len(stubs) == 1:
         warn(
-            f"Array module '{amw}' does not have"
+            f"Array module '{xpw}' does not have"
             f" the dtype {f_stubs} in its namespace."
         )
     else:
         warn(
-            f"Array module '{amw}' does not have"
+            f"Array module '{xpw}' does not have"
             f" the following dtypes in its namespace: {f_stubs}."
         )
 
 
 @wrap_array_module
-def scalar_dtypes(amw) -> st.SearchStrategy[DataType]:
-    dtypes, stubs = partition_stubs(getattr(amw, name) for name in DTYPE_NAMES["all"])
+def scalar_dtypes(xpw) -> st.SearchStrategy[DataType]:
+    dtypes, stubs = partition_stubs(getattr(xpw, name) for name in DTYPE_NAMES["all"])
     if len(dtypes) == 0:
-        raise MissingDtypesError(amw, stubs)
+        raise MissingDtypesError(xpw, stubs)
     elif len(stubs) != 0:
-        warn_on_missing_dtypes(amw, stubs)
+        warn_on_missing_dtypes(xpw, stubs)
 
     return st.sampled_from(dtypes)
 
 
 @wrap_array_module
-def boolean_dtypes(amw: ArrayModuleWrapper) -> st.SearchStrategy[Boolean]:
-    dtype = amw.bool
+def boolean_dtypes(xpw: ArrayModuleWrapper) -> st.SearchStrategy[Boolean]:
+    dtype = xpw.bool
     if isinstance(dtype, Stub):
-        raise MissingDtypesError(amw, [dtype])
+        raise MissingDtypesError(xpw, [dtype])
 
     return st.just(dtype)
 
 
 @wrap_array_module
-def integer_dtypes(amw: ArrayModuleWrapper) -> st.SearchStrategy[SignedInteger]:
-    dtypes, stubs = partition_stubs(getattr(amw, name) for name in DTYPE_NAMES["ints"])
+def integer_dtypes(xpw: ArrayModuleWrapper) -> st.SearchStrategy[SignedInteger]:
+    dtypes, stubs = partition_stubs(getattr(xpw, name) for name in DTYPE_NAMES["ints"])
     if len(dtypes) == 0:
-        raise MissingDtypesError(amw, stubs)
+        raise MissingDtypesError(xpw, stubs)
     elif len(stubs) != 0:
-        warn_on_missing_dtypes(amw, stubs)
+        warn_on_missing_dtypes(xpw, stubs)
 
     return st.sampled_from(dtypes)
 
 
 @wrap_array_module
 def unsigned_integer_dtypes(
-    amw: ArrayModuleWrapper
+    xpw: ArrayModuleWrapper
 ) -> st.SearchStrategy[UnsignedInteger]:
-    dtypes, stubs = partition_stubs(getattr(amw, name) for name in DTYPE_NAMES["uints"])
+    dtypes, stubs = partition_stubs(getattr(xpw, name) for name in DTYPE_NAMES["uints"])
     if len(dtypes) == 0:
-        raise MissingDtypesError(amw, stubs)
+        raise MissingDtypesError(xpw, stubs)
     elif len(stubs) != 0:
-        warn_on_missing_dtypes(amw, stubs)
+        warn_on_missing_dtypes(xpw, stubs)
 
     return st.sampled_from(dtypes)
 
 
 @wrap_array_module
-def floating_dtypes(amw: ArrayModuleWrapper) -> st.SearchStrategy[Float]:
-    dtypes, stubs = partition_stubs(getattr(amw, name)
+def floating_dtypes(xpw: ArrayModuleWrapper) -> st.SearchStrategy[Float]:
+    dtypes, stubs = partition_stubs(getattr(xpw, name)
                                     for name in DTYPE_NAMES["floats"])
     if len(dtypes) == 0:
-        raise MissingDtypesError(amw, stubs)
+        raise MissingDtypesError(xpw, stubs)
     elif len(stubs) != 0:
-        warn_on_missing_dtypes(amw, stubs)
+        warn_on_missing_dtypes(xpw, stubs)
 
     return st.sampled_from(dtypes)
