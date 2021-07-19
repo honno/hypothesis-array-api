@@ -1,11 +1,12 @@
 from hypothesis import given
+from hypothesis import strategies as st
 
 import hypothesis_array as xpst
 
-from .array_module_utils import create_array_module
+from .xputils import create_array_module
 
-am = create_array_module()
-xpst.array_module = am
+xp = create_array_module()
+xpst.array_module = xp
 
 
 @given(xpst.array_shapes())
@@ -16,32 +17,60 @@ def test_can_generate_array_shapes(shape):
 
 @given(xpst.scalar_dtypes())
 def test_can_generate_scalar_dtypes(dtype):
-    assert dtype in (getattr(am, name) for name in xpst.DTYPE_NAMES["all"])
+    assert dtype in (getattr(xp, name) for name in xpst.DTYPE_NAMES["all"])
 
 
 @given(xpst.boolean_dtypes())
 def test_can_generate_boolean_dtypes(dtype):
-    assert dtype == am.bool
+    assert dtype == xp.bool
 
 
 @given(xpst.integer_dtypes())
 def test_can_generate_integer_dtypes(dtype):
-    assert dtype in (getattr(am, name) for name in xpst.DTYPE_NAMES["ints"])
+    assert dtype in (getattr(xp, name) for name in xpst.DTYPE_NAMES["ints"])
 
 
 @given(xpst.unsigned_integer_dtypes())
 def test_can_generate_unsigned_integer_dtypes(dtype):
-    assert dtype in (getattr(am, name) for name in xpst.DTYPE_NAMES["uints"])
+    assert dtype in (getattr(xp, name) for name in xpst.DTYPE_NAMES["uints"])
 
 
 @given(xpst.floating_dtypes())
 def test_can_generate_floating_dtypes(dtype):
-    assert dtype in (getattr(am, name) for name in xpst.DTYPE_NAMES["floats"])
+    assert dtype in (getattr(xp, name) for name in xpst.DTYPE_NAMES["floats"])
 
 
-@given(xpst.arrays(dtype=am.bool, shape=(42,)))
+@given(st.data())
+def test_can_draw_arrays_from_scalars(data):
+    dtype = data.draw(xpst.scalar_dtypes())
+    array = data.draw(xpst.arrays(dtype=dtype, shape=()))
+
+    array.__array_module__()
+    assert array.dtype == dtype
+
+
+@given(st.data())
+def test_can_draw_arrays_from_scalar_strategies(data):
+    dtype_st_func = data.draw(
+        st.sampled_from(
+            [
+                xpst.scalar_dtypes,
+                xpst.boolean_dtypes,
+                xpst.integer_dtypes,
+                xpst.unsigned_integer_dtypes,
+                xpst.floating_dtypes,
+            ]
+        )
+    )
+    array = data.draw(xpst.arrays(dtype=dtype_st_func(), shape=()))
+
+    array.__array_module__()
+    # TODO assert array.dtype in [<possible dtypes...>]
+
+
+@given(xpst.arrays(dtype=xp.bool, shape=(42,)))
 def test_can_generate_1d_arrays(array):
-    assert array.dtype == am.bool
+    assert array.dtype == xp.bool
     assert array.ndim == 1
     assert array.shape == (42,)
     assert array.size == 42

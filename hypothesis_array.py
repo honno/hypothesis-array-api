@@ -9,6 +9,7 @@ from hypothesis.errors import InvalidArgument
 from hypothesis.internal.validation import check_type
 
 __all__ = [
+    "from_dtype",
     "arrays",
     "array_shapes",
     "scalar_dtypes",
@@ -16,7 +17,6 @@ __all__ = [
     "integer_dtypes",
     "unsigned_integer_dtypes",
     "floating_dtypes",
-    "from_dtype",
 ]
 
 array_module = None  # monkey patch this as the array module for now
@@ -148,20 +148,36 @@ def from_dtype(
 @wrap_array_module
 def arrays(
         xpw: ArrayModuleWrapper,
-        dtype: DataType,
+        dtype: Union[DataType, st.SearchStrategy[DataType]],
         shape: Shape,
 ) -> st.SearchStrategy[Array]:
-    if len(shape) != 1:
+    if len(shape) not in [0, 1]:
         raise NotImplementedError()
 
-    elements_st = from_dtype(dtype)
+    check_attr(xpw, "asarray")
 
-    @st.composite
-    def strategy(draw) -> st.SearchStrategy[Array]:
-        elements = draw(st.lists(elements_st, min_size=shape[0], max_size=shape[0]))
-        array = xpw.asarray(elements, dtype=dtype)
+    if isinstance(dtype, st.SearchStrategy):
+        return dtype.flatmap(lambda dtype: arrays(dtype, shape))
 
-        return array
+    element_strategy = from_dtype(dtype)
+
+    if len(shape) == 0:
+        @st.composite
+        def strategy(draw) -> st.SearchStrategy[Array]:
+            element = draw(element_strategy)
+            array = xpw.asarray(element, dtype=dtype)
+
+            return array
+
+    else:
+        @st.composite
+        def strategy(draw) -> st.SearchStrategy[Array]:
+            elements = draw(
+                st.lists(element_strategy, min_size=shape[0], max_size=shape[0])
+            )
+            array = xpw.asarray(elements, dtype=dtype)
+
+            return array
 
     return strategy()
 

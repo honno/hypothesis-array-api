@@ -4,11 +4,11 @@ from typing import Any, Optional, Tuple
 import numpy as np
 
 __all__ = [
-    "complete_dtype_map",
+    "COMPLETE_DTYPE_MAP",
     "create_array_module",
 ]
 
-complete_dtype_map = {
+COMPLETE_DTYPE_MAP = {
     "int8": np.int8,
     "int16": np.int16,
     "int32": np.int32,
@@ -34,7 +34,7 @@ def create_array_module(attrvals: Optional[Tuple[Tuple[str, Any], ...]] = None):
     array_module = ArrayModule()
 
     if attrvals is None:
-        attrvals = tuple(complete_dtype_map.items())
+        attrvals = tuple(COMPLETE_DTYPE_MAP.items())
 
     for attr, value in attrvals:
         setattr(array_module, attr, value)

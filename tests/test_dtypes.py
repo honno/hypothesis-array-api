@@ -8,7 +8,7 @@ from pytest import mark
 
 import hypothesis_array as xpst
 
-_am_supported_dtypes = {
+_xp_supported_dtypes = {
     np: [
         # bool namespace is not the NumPy scalar np.bool_
         "int8",
@@ -30,10 +30,10 @@ _am_supported_dtypes = {
         # - torch.uint64
     ],
 }
-am_supported_dtypes = []
-for am, dtypes in _am_supported_dtypes.items():
+xp_supported_dtypes = []
+for xp, dtypes in _xp_supported_dtypes.items():
     for dtype in dtypes:
-        am_supported_dtypes.append((am, dtype))
+        xp_supported_dtypes.append((xp, dtype))
 
 
 @lru_cache()
@@ -47,11 +47,11 @@ def builtin_from_dtype_name(name: str) -> Union[bool, int, float]:
     raise ValueError()
 
 
-@mark.parametrize("am, dtype_name", am_supported_dtypes)
-def test_strategy_inference(am, dtype_name):
+@mark.parametrize("xp, dtype_name", xp_supported_dtypes)
+def test_strategy_inference(xp, dtype_name):
     builtin = builtin_from_dtype_name(dtype_name)
-    dtype = getattr(am, dtype_name)
-    xpst.array_module = am
+    dtype = getattr(xp, dtype_name)
+    xpst.array_module = xp
     strategy = xpst.from_dtype(dtype)
 
     @given(strategy)

@@ -6,7 +6,7 @@ from pytest import raises
 
 import hypothesis_array as xpst
 
-from .array_module_utils import complete_dtype_map, create_array_module
+from .xputils import COMPLETE_DTYPE_MAP, create_array_module
 
 T = TypeVar("T")
 
@@ -16,7 +16,7 @@ def dtype_maps(draw) -> st.SearchStrategy[Dict[str, T]]:
     booleans = st.booleans()
     dtype_map = {}
 
-    for dtype_name, dtype in complete_dtype_map.items():
+    for dtype_name, dtype in COMPLETE_DTYPE_MAP.items():
         if draw(booleans):
             dtype_map[dtype_name] = dtype
 
@@ -36,13 +36,13 @@ def test_error_on_missing_attr():
     class ArrayModule:
         __name__ = "foo"
         int8 = None
-    am = ArrayModule()
-    xpst.array_module = am
+    xp = ArrayModule()
+    xpst.array_module = xp
     with raises(
             AttributeError,
             match="'foo' does not have required attribute 'iinfo'"
     ):
-        xpst.from_dtype(am.int8)
+        xpst.from_dtype(xp.int8)
 
 
 @given(dtype_maps())
