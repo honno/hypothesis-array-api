@@ -1,7 +1,12 @@
 from functools import lru_cache
-from typing import Any, Optional, Tuple
+from types import SimpleNamespace
+from typing import Any, Tuple
 
 import numpy as np
+
+# I don't use _array_api from github.com/numpy/numpy/pull/18585 yet as I'd
+# rather work in the mode of not building NumPy from source to use this test
+# suite
 
 __all__ = [
     "COMPLETE_DTYPE_MAP",
@@ -24,19 +29,23 @@ COMPLETE_DTYPE_MAP = {
 
 
 @lru_cache()
-def create_array_module(attrvals: Optional[Tuple[Tuple[str, Any], ...]] = None):
-    class ArrayModule:
-        __name__ = "mockpy"
-        iinfo = np.iinfo
-        finfo = np.finfo
-        asarray = np.asarray
+def create_array_module(
+    *,
+    assign_attrs: Tuple[Tuple[str, Any], ...] = (),
+    attrs_to_del: Tuple[str, ...] = (),
+):
+    attributes = {
+        "__name__": "mockpy",
+        "iinfo": np.iinfo,
+        "finfo": np.finfo,
+        "asarray": np.asarray,
+    }
+    attributes.update(COMPLETE_DTYPE_MAP)
 
-    array_module = ArrayModule()
+    for attr in attrs_to_del:
+        del attributes[attr]
 
-    if attrvals is None:
-        attrvals = tuple(COMPLETE_DTYPE_MAP.items())
+    for attr, value in assign_attrs:
+        attributes[attr] = value
 
-    for attr, value in attrvals:
-        setattr(array_module, attr, value)
-
-    return array_module
+    return SimpleNamespace(**attributes)

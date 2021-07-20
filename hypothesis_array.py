@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from functools import wraps
 from itertools import tee
-from typing import Any, Iterable, List, Optional, Tuple, TypeVar, Union
+from typing import Any, Iterable, List, Optional, Tuple, Type, TypeVar, Union
 from warnings import warn
 
 from hypothesis import strategies as st
@@ -244,7 +244,7 @@ def warn_on_missing_dtypes(xpw: ArrayModuleWrapper, stubs: List[Stub]):
 
 
 @wrap_array_module
-def scalar_dtypes(xpw) -> st.SearchStrategy[DataType]:
+def scalar_dtypes(xpw) -> st.SearchStrategy[Type[DataType]]:
     dtypes, stubs = partition_stubs(getattr(xpw, name) for name in DTYPE_NAMES["all"])
     if len(dtypes) == 0:
         raise MissingDtypesError(xpw, stubs)
@@ -255,7 +255,7 @@ def scalar_dtypes(xpw) -> st.SearchStrategy[DataType]:
 
 
 @wrap_array_module
-def boolean_dtypes(xpw: ArrayModuleWrapper) -> st.SearchStrategy[Boolean]:
+def boolean_dtypes(xpw: ArrayModuleWrapper) -> st.SearchStrategy[Type[Boolean]]:
     dtype = xpw.bool
     if isinstance(dtype, Stub):
         raise MissingDtypesError(xpw, [dtype])
@@ -264,7 +264,7 @@ def boolean_dtypes(xpw: ArrayModuleWrapper) -> st.SearchStrategy[Boolean]:
 
 
 @wrap_array_module
-def integer_dtypes(xpw: ArrayModuleWrapper) -> st.SearchStrategy[SignedInteger]:
+def integer_dtypes(xpw: ArrayModuleWrapper) -> st.SearchStrategy[Type[SignedInteger]]:
     dtypes, stubs = partition_stubs(getattr(xpw, name) for name in DTYPE_NAMES["ints"])
     if len(dtypes) == 0:
         raise MissingDtypesError(xpw, stubs)
@@ -288,7 +288,7 @@ def unsigned_integer_dtypes(
 
 
 @wrap_array_module
-def floating_dtypes(xpw: ArrayModuleWrapper) -> st.SearchStrategy[Float]:
+def floating_dtypes(xpw: ArrayModuleWrapper) -> st.SearchStrategy[Type[Float]]:
     dtypes, stubs = partition_stubs(getattr(xpw, name)
                                     for name in DTYPE_NAMES["floats"])
     if len(dtypes) == 0:

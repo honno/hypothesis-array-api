@@ -1,5 +1,5 @@
 from functools import lru_cache
-from typing import Union
+from typing import Type, Union
 
 import numpy as np
 import torch
@@ -37,7 +37,7 @@ for xp, dtypes in _xp_supported_dtypes.items():
 
 
 @lru_cache()
-def builtin_from_dtype_name(name: str) -> Union[bool, int, float]:
+def builtin_from_dtype_name(name: str) -> Type[Union[bool, int, float]]:
     if name == "bool":
         return bool
     elif name in xpst.DTYPE_NAMES["ints"] or name in xpst.DTYPE_NAMES["uints"]:

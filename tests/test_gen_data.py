@@ -45,7 +45,7 @@ def test_can_draw_arrays_from_scalars(data):
     dtype = data.draw(xpst.scalar_dtypes())
     array = data.draw(xpst.arrays(dtype=dtype, shape=()))
 
-    array.__array_module__()
+    # TODO use array.__array_namespace__() once NumPy releases _array_api
     assert array.dtype == dtype
 
 
@@ -62,9 +62,9 @@ def test_can_draw_arrays_from_scalar_strategies(data):
             ]
         )
     )
-    array = data.draw(xpst.arrays(dtype=dtype_st_func(), shape=()))
+    data.draw(xpst.arrays(dtype=dtype_st_func(), shape=()))
 
-    array.__array_module__()
+    # TODO use array.__array_namespace__() once NumPy releases _array_api
     # TODO assert array.dtype in [<possible dtypes...>]
 
 
