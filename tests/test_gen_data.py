@@ -68,9 +68,14 @@ def test_can_draw_arrays_from_scalar_strategies(data):
     # TODO assert array.dtype in [<possible dtypes...>]
 
 
-@given(xpst.arrays(dtype=xp.bool, shape=(42,)))
-def test_can_generate_1d_arrays(array):
-    assert array.dtype == xp.bool
+integer_max = xp.iinfo(xp.int8).max
+
+
+@given(st.data())
+def test_can_generate_1d_arrays(data):
+    size = data.draw(st.integers(min_value=0, max_value=integer_max))
+    array = data.draw(xpst.arrays(dtype=xpst.scalar_dtypes(), shape=(size,)))
+
     assert array.ndim == 1
-    assert array.shape == (42,)
-    assert array.size == 42
+    assert array.shape == (size,)
+    assert array.size == size
