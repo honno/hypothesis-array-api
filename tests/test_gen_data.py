@@ -1,3 +1,5 @@
+from math import prod
+
 from hypothesis import given
 from hypothesis import strategies as st
 
@@ -68,14 +70,21 @@ def test_can_draw_arrays_from_scalar_strategies(data):
     # TODO assert array.dtype in [<possible dtypes...>]
 
 
-integer_max = xp.iinfo(xp.int8).max
-
-
 @given(st.data())
 def test_can_generate_1d_arrays(data):
-    size = data.draw(st.integers(min_value=0, max_value=integer_max))
+    size = data.draw(st.integers(min_value=0, max_value=1024))
     array = data.draw(xpst.arrays(dtype=xpst.scalar_dtypes(), shape=(size,)))
 
     assert array.ndim == 1
     assert array.shape == (size,)
     assert array.size == size
+
+
+@given(st.data())
+def test_can_generate_nd_arrays(data):
+    shape = data.draw(xpst.array_shapes(min_dims=2, max_dims=16))
+    array = data.draw(xpst.arrays(dtype=xpst.scalar_dtypes(), shape=shape))
+
+    assert array.ndim == len(shape)
+    assert array.shape == shape
+    assert array.size == prod(shape)

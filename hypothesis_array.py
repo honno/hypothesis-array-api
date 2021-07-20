@@ -151,35 +151,21 @@ def arrays(
         dtype: Union[DataType, st.SearchStrategy[DataType]],
         shape: Shape,
 ) -> st.SearchStrategy[Array]:
-    if len(shape) not in [0, 1]:
-        raise NotImplementedError()
-
     check_attr(xpw, "asarray")
 
     if isinstance(dtype, st.SearchStrategy):
-        return dtype.flatmap(lambda dtype: arrays(dtype, shape))
+        return dtype.flatmap(lambda d: arrays(d, shape))
 
-    element_strategy = from_dtype(dtype)
+    elements = from_dtype(dtype)
 
     if len(shape) == 0:
-        @st.composite
-        def strategy(draw) -> st.SearchStrategy[Array]:
-            element = draw(element_strategy)
-            array = xpw.asarray(element, dtype=dtype)
+        return elements.map(lambda e: xpw.asarray(e, dtype=dtype))
 
-            return array
+    strategy = elements
+    for dimension_size in shape[::-1]:
+        strategy = st.lists(strategy, min_size=dimension_size, max_size=dimension_size)
 
-    else:
-        @st.composite
-        def strategy(draw) -> st.SearchStrategy[Array]:
-            elements = draw(
-                st.lists(element_strategy, min_size=shape[0], max_size=shape[0])
-            )
-            array = xpw.asarray(elements, dtype=dtype)
-
-            return array
-
-    return strategy()
+    return strategy.map(lambda array: xpw.asarray(array, dtype=dtype))
 
 
 def array_shapes(
