@@ -23,7 +23,7 @@ def test_can_generate_array_shapes(shape):
 
 @given(xpst.scalar_dtypes())
 def test_can_generate_scalar_dtypes(dtype):
-    assert dtype in (getattr(xp, name) for name in xpst.DTYPE_NAMES["all"])
+    assert dtype in (getattr(xp, name) for name in xpst.DTYPE_NAMES)
 
 
 @given(xpst.boolean_dtypes())
@@ -33,17 +33,17 @@ def test_can_generate_boolean_dtypes(dtype):
 
 @given(xpst.integer_dtypes())
 def test_can_generate_integer_dtypes(dtype):
-    assert dtype in (getattr(xp, name) for name in xpst.DTYPE_NAMES["ints"])
+    assert dtype in (getattr(xp, name) for name in xpst.INT_NAMES)
 
 
 @given(xpst.unsigned_integer_dtypes())
 def test_can_generate_unsigned_integer_dtypes(dtype):
-    assert dtype in (getattr(xp, name) for name in xpst.DTYPE_NAMES["uints"])
+    assert dtype in (getattr(xp, name) for name in xpst.UINT_NAMES)
 
 
 @given(xpst.floating_dtypes())
 def test_can_generate_floating_dtypes(dtype):
-    assert dtype in (getattr(xp, name) for name in xpst.DTYPE_NAMES["floats"])
+    assert dtype in (getattr(xp, name) for name in xpst.FLOAT_NAMES)
 
 
 @given(st.data())

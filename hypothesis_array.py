@@ -21,18 +21,11 @@ __all__ = [
 
 array_module = None  # monkey patch this as the array module for now
 
-DTYPE_NAMES = {
-    "all": [
-        "bool",
-        "int8", "int16", "int32", "int64",
-        "uint8", "uint16", "uint32", "uint64",
-        "float32", "float64",
-    ],
-    "ints": ["int8", "int16", "int32", "int64"],
-    "uints": ["uint8", "uint16", "uint32", "uint64"],
-    "floats": ["float32", "float64"],
-}
-
+INT_NAMES = ["int8", "int16", "int32", "int64"]
+UINT_NAMES = ["uint8", "uint16", "uint32", "uint64"]
+FLOAT_NAMES = ["float32", "float64"]
+DTYPE_NAMES = INT_NAMES + UINT_NAMES + FLOAT_NAMES
+DTYPE_NAMES.append("bool")
 
 Boolean = TypeVar("Boolean")
 SignedInteger = TypeVar("SignedInteger")
@@ -164,7 +157,7 @@ def arrays(
         return elements.map(lambda e: xpw.asarray(e, dtype=dtype))
 
     strategy = elements
-    for dimension_size in shape[::-1]:
+    for dimension_size in reversed(shape):
         strategy = st.lists(strategy, min_size=dimension_size, max_size=dimension_size)
 
     return strategy.map(lambda array: xpw.asarray(array, dtype=dtype))
@@ -233,7 +226,7 @@ def warn_on_missing_dtypes(xpw: ArrayModuleWrapper, stubs: List[Stub]):
 
 @wrap_array_module
 def scalar_dtypes(xpw) -> st.SearchStrategy[Type[DataType]]:
-    dtypes, stubs = partition_stubs(getattr(xpw, name) for name in DTYPE_NAMES["all"])
+    dtypes, stubs = partition_stubs(getattr(xpw, name) for name in DTYPE_NAMES)
     if len(dtypes) == 0:
         raise MissingDtypesError(xpw, stubs)
     elif len(stubs) != 0:
@@ -253,7 +246,7 @@ def boolean_dtypes(xpw: ArrayModuleWrapper) -> st.SearchStrategy[Type[Boolean]]:
 
 @wrap_array_module
 def integer_dtypes(xpw: ArrayModuleWrapper) -> st.SearchStrategy[Type[SignedInteger]]:
-    dtypes, stubs = partition_stubs(getattr(xpw, name) for name in DTYPE_NAMES["ints"])
+    dtypes, stubs = partition_stubs(getattr(xpw, name) for name in INT_NAMES)
     if len(dtypes) == 0:
         raise MissingDtypesError(xpw, stubs)
     elif len(stubs) != 0:
@@ -266,7 +259,7 @@ def integer_dtypes(xpw: ArrayModuleWrapper) -> st.SearchStrategy[Type[SignedInte
 def unsigned_integer_dtypes(
     xpw: ArrayModuleWrapper
 ) -> st.SearchStrategy[UnsignedInteger]:
-    dtypes, stubs = partition_stubs(getattr(xpw, name) for name in DTYPE_NAMES["uints"])
+    dtypes, stubs = partition_stubs(getattr(xpw, name) for name in UINT_NAMES)
     if len(dtypes) == 0:
         raise MissingDtypesError(xpw, stubs)
     elif len(stubs) != 0:
@@ -278,7 +271,7 @@ def unsigned_integer_dtypes(
 @wrap_array_module
 def floating_dtypes(xpw: ArrayModuleWrapper) -> st.SearchStrategy[Type[Float]]:
     dtypes, stubs = partition_stubs(getattr(xpw, name)
-                                    for name in DTYPE_NAMES["floats"])
+                                    for name in FLOAT_NAMES)
     if len(dtypes) == 0:
         raise MissingDtypesError(xpw, stubs)
     elif len(stubs) != 0:

@@ -101,7 +101,7 @@ def test_integer_dtypes(dtype_map_and_missing_dtypes):
         attrs_to_del=tuple(missing_dtypes),
     )
 
-    if any(name in dtype_map.keys() for name in xpst.DTYPE_NAMES["ints"]):
+    if any(name in dtype_map.keys() for name in xpst.INT_NAMES):
         @given(xpst.integer_dtypes())
         def test(dtype):
             pass
@@ -122,7 +122,7 @@ def test_unsigned_integer_dtypes(dtype_map_and_missing_dtypes):
         attrs_to_del=tuple(missing_dtypes),
     )
 
-    if any(name in dtype_map.keys() for name in xpst.DTYPE_NAMES["uints"]):
+    if any(name in dtype_map.keys() for name in xpst.UINT_NAMES):
         @given(xpst.unsigned_integer_dtypes())
         def test(dtype):
             pass
@@ -143,7 +143,7 @@ def test_floating_dtypes(dtype_map_and_missing_dtypes):
         attrs_to_del=tuple(missing_dtypes),
     )
 
-    if any(name in dtype_map.keys() for name in xpst.DTYPE_NAMES["floats"]):
+    if any(name in dtype_map.keys() for name in xpst.FLOAT_NAMES):
         @given(xpst.floating_dtypes())
         def test(dtype):
             pass

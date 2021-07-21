@@ -40,9 +40,9 @@ for xp, dtypes in _xp_supported_dtypes.items():
 def builtin_from_dtype_name(name: str) -> Type[Union[bool, int, float]]:
     if name == "bool":
         return bool
-    elif name in xpst.DTYPE_NAMES["ints"] or name in xpst.DTYPE_NAMES["uints"]:
+    elif name in xpst.INT_NAMES or name in xpst.UINT_NAMES:
         return int
-    elif name in xpst.DTYPE_NAMES["floats"]:
+    elif name in xpst.FLOAT_NAMES:
         return float
     raise ValueError()
 
