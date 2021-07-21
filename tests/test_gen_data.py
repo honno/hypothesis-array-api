@@ -2,6 +2,7 @@ from math import prod
 
 from hypothesis import given
 from hypothesis import strategies as st
+from pytest import mark, param
 
 import hypothesis_array as xpst
 
@@ -9,6 +10,9 @@ from .xputils import create_array_module
 
 xp = create_array_module()
 xpst.array_module = xp
+
+# Currently tests here will fail when running the whole test suite due to the
+# monkey patching method of specifying xp.
 
 
 @given(xpst.array_shapes())
@@ -43,48 +47,39 @@ def test_can_generate_floating_dtypes(dtype):
 
 
 @given(st.data())
-def test_can_draw_arrays_from_scalars(data):
+def test_can_generate_arrays(data):
     dtype = data.draw(xpst.scalar_dtypes())
-    array = data.draw(xpst.arrays(dtype=dtype, shape=()))
+    shape = data.draw(xpst.array_shapes())
+    array = data.draw(xpst.arrays(dtype=dtype, shape=shape))
 
-    # TODO use array.__array_namespace__() once NumPy releases _array_api
     assert array.dtype == dtype
-
-
-@given(st.data())
-def test_can_draw_arrays_from_scalar_strategies(data):
-    dtype_st_func = data.draw(
-        st.sampled_from(
-            [
-                xpst.scalar_dtypes,
-                xpst.boolean_dtypes,
-                xpst.integer_dtypes,
-                xpst.unsigned_integer_dtypes,
-                xpst.floating_dtypes,
-            ]
-        )
-    )
-    data.draw(xpst.arrays(dtype=dtype_st_func(), shape=()))
-
-    # TODO use array.__array_namespace__() once NumPy releases _array_api
-    # TODO assert array.dtype in [<possible dtypes...>]
-
-
-@given(st.data())
-def test_can_generate_1d_arrays(data):
-    size = data.draw(st.integers(min_value=0, max_value=1024))
-    array = data.draw(xpst.arrays(dtype=xpst.scalar_dtypes(), shape=(size,)))
-
-    assert array.ndim == 1
-    assert array.shape == (size,)
-    assert array.size == size
-
-
-@given(st.data())
-def test_can_generate_nd_arrays(data):
-    shape = data.draw(xpst.array_shapes(min_dims=2, max_dims=16))
-    array = data.draw(xpst.arrays(dtype=xpst.scalar_dtypes(), shape=shape))
-
     assert array.ndim == len(shape)
     assert array.shape == shape
     assert array.size == prod(shape)
+    # TODO check array.__array_namespace__() exists once xputils is compliant
+
+
+@mark.parametrize(
+    "strategy",
+    [
+        param(xpst.scalar_dtypes(), id="scalar"),
+        param(xpst.boolean_dtypes(), id="boolean"),
+        param(xpst.integer_dtypes(), id="signed_integer"),
+        param(xpst.unsigned_integer_dtypes(), id="unsigned_integer"),
+        param(xpst.floating_dtypes(), id="floating"),
+    ],
+)
+def test_can_draw_arrays_from_scalar_strategies(strategy):
+    @given(xpst.arrays(dtype=strategy, shape=()))
+    def test(_):
+        pass
+
+    test()
+
+
+def test_can_draw_arrays_from_array_shapes():
+    @given(xpst.arrays(dtype=xp.bool, shape=xpst.array_shapes()))
+    def test(_):
+        pass
+
+    test()

@@ -50,16 +50,16 @@ class Stub(str):
 
 
 class ArrayModuleWrapper:
-    def __init__(self, array_module: Any):
+    def __init__(self, xp: Any):
+        self.xp = xp
+
         try:
-            array = array_module.asarray([True], dtype=bool)
+            array = xp.asarray(True, dtype=xp.bool)
             array.__array_namespace__()
-            self.xp = array_module
-        except AttributeError:
-            self.xp = array_module
+        except BaseException:
             warn(f"Could not determine whether module '{self}' is an Array API library")
 
-        if hasattr(self.xp, "xp"):
+        if hasattr(xp, "xp"):
             warn(f"Array module '{self}' has attribute 'xp' which will be inaccessible")
 
     def __getattr__(self, name: str) -> Any:
@@ -111,7 +111,7 @@ def check_attr(xpw: ArrayModuleWrapper, attr: str):
 def order_check(name, floor, min_, max_):
     if floor > min_:
         raise InvalidArgument(f"min_{name} must be at least {floor} but was {min_}")
-    if min_ >= max_:
+    if min_ > max_:
         raise InvalidArgument(f"min_{name}={min_} is larger than max_{name}={max_}")
 
 
@@ -149,12 +149,14 @@ def from_dtype(
 def arrays(
         xpw: ArrayModuleWrapper,
         dtype: Union[DataType, st.SearchStrategy[DataType]],
-        shape: Shape,
+        shape: Union[Shape, st.SearchStrategy[Shape]],
 ) -> st.SearchStrategy[Array]:
     check_attr(xpw, "asarray")
 
     if isinstance(dtype, st.SearchStrategy):
         return dtype.flatmap(lambda d: arrays(d, shape))
+    if isinstance(shape, st.SearchStrategy):
+        return shape.flatmap(lambda s: arrays(dtype, s))
 
     elements = from_dtype(dtype)
 
