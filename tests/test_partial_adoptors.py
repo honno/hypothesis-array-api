@@ -31,40 +31,40 @@ def dtype_maps(draw) -> st.SearchStrategy[Tuple[Dict[str, T], List[str]]]:
 def test_from_dtype(dtype_map_and_missing_dtypes):
     dtype_map, missing_dtypes = dtype_map_and_missing_dtypes
     attr_dtype_pairs = tuple(dtype_map.items())
-    xpst.array_module = create_array_module(
+    xp = create_array_module(
         assign_attrs=attr_dtype_pairs,
         attrs_to_del=tuple(missing_dtypes),
     )
 
     for dtype_name, dtype in attr_dtype_pairs:
-        xpst.from_dtype(dtype)
+        xpst.from_dtype(xp, dtype)
 
 
 def test_error_on_missing_attr():
     xp = SimpleNamespace(**{"__name__": "foo", "int8": None})
-    xpst.array_module = xp
+    xp = xp
     with raises(
         AttributeError,
         match="'foo' does not have required attribute 'iinfo'"
     ):
-        xpst.from_dtype(xp.int8)
+        xpst.from_dtype(xp, xp.int8)
 
 
 @given(dtype_maps())
 def test_scalar_dtypes(dtype_map_and_missing_dtypes):
     dtype_map, missing_dtypes = dtype_map_and_missing_dtypes
     attr_dtype_pairs = tuple(dtype_map.items())
-    xpst.array_module = create_array_module(
+    xp = create_array_module(
         assign_attrs=attr_dtype_pairs,
         attrs_to_del=tuple(missing_dtypes),
     )
 
     if len(dtype_map) == 0:
         with raises(xpst.MissingDtypesError):
-            xpst.scalar_dtypes()
+            xpst.scalar_dtypes(xp)
 
     else:
-        @given(xpst.scalar_dtypes())
+        @given(xpst.scalar_dtypes(xp))
         def test(dtype):
             pass
 
@@ -75,13 +75,13 @@ def test_scalar_dtypes(dtype_map_and_missing_dtypes):
 def test_boolean_dtypes(dtype_map_and_missing_dtypes):
     dtype_map, missing_dtypes = dtype_map_and_missing_dtypes
     attr_dtype_pairs = tuple(dtype_map.items())
-    xpst.array_module = create_array_module(
+    xp = create_array_module(
         assign_attrs=attr_dtype_pairs,
         attrs_to_del=tuple(missing_dtypes),
     )
 
     if "bool" in dtype_map.keys():
-        @given(xpst.boolean_dtypes())
+        @given(xpst.boolean_dtypes(xp))
         def test(dtype):
             pass
 
@@ -89,20 +89,20 @@ def test_boolean_dtypes(dtype_map_and_missing_dtypes):
 
     else:
         with raises(xpst.MissingDtypesError):
-            xpst.boolean_dtypes()
+            xpst.boolean_dtypes(xp)
 
 
 @given(dtype_maps())
 def test_integer_dtypes(dtype_map_and_missing_dtypes):
     dtype_map, missing_dtypes = dtype_map_and_missing_dtypes
     attr_dtype_pairs = tuple(dtype_map.items())
-    xpst.array_module = create_array_module(
+    xp = create_array_module(
         assign_attrs=attr_dtype_pairs,
         attrs_to_del=tuple(missing_dtypes),
     )
 
     if any(name in dtype_map.keys() for name in xpst.INT_NAMES):
-        @given(xpst.integer_dtypes())
+        @given(xpst.integer_dtypes(xp))
         def test(dtype):
             pass
 
@@ -110,20 +110,20 @@ def test_integer_dtypes(dtype_map_and_missing_dtypes):
 
     else:
         with raises(xpst.MissingDtypesError):
-            xpst.integer_dtypes()
+            xpst.integer_dtypes(xp)
 
 
 @given(dtype_maps())
 def test_unsigned_integer_dtypes(dtype_map_and_missing_dtypes):
     dtype_map, missing_dtypes = dtype_map_and_missing_dtypes
     attr_dtype_pairs = tuple(dtype_map.items())
-    xpst.array_module = create_array_module(
+    xp = create_array_module(
         assign_attrs=attr_dtype_pairs,
         attrs_to_del=tuple(missing_dtypes),
     )
 
     if any(name in dtype_map.keys() for name in xpst.UINT_NAMES):
-        @given(xpst.unsigned_integer_dtypes())
+        @given(xpst.unsigned_integer_dtypes(xp))
         def test(dtype):
             pass
 
@@ -131,20 +131,20 @@ def test_unsigned_integer_dtypes(dtype_map_and_missing_dtypes):
 
     else:
         with raises(xpst.MissingDtypesError):
-            xpst.unsigned_integer_dtypes()
+            xpst.unsigned_integer_dtypes(xp)
 
 
 @given(dtype_maps())
 def test_floating_dtypes(dtype_map_and_missing_dtypes):
     dtype_map, missing_dtypes = dtype_map_and_missing_dtypes
     attr_dtype_pairs = tuple(dtype_map.items())
-    xpst.array_module = create_array_module(
+    xp = create_array_module(
         assign_attrs=attr_dtype_pairs,
         attrs_to_del=tuple(missing_dtypes),
     )
 
     if any(name in dtype_map.keys() for name in xpst.FLOAT_NAMES):
-        @given(xpst.floating_dtypes())
+        @given(xpst.floating_dtypes(xp))
         def test(dtype):
             pass
 
@@ -152,4 +152,4 @@ def test_floating_dtypes(dtype_map_and_missing_dtypes):
 
     else:
         with raises(xpst.MissingDtypesError):
-            xpst.floating_dtypes()
+            xpst.floating_dtypes(xp)

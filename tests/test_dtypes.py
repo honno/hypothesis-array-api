@@ -51,8 +51,7 @@ def builtin_from_dtype_name(name: str) -> Type[Union[bool, int, float]]:
 def test_strategy_inference(xp, dtype_name):
     builtin = builtin_from_dtype_name(dtype_name)
     dtype = getattr(xp, dtype_name)
-    xpst.array_module = xp
-    strategy = xpst.from_dtype(dtype)
+    strategy = xpst.from_dtype(xp, dtype)
 
     @given(strategy)
     def test(value):
