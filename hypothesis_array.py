@@ -259,7 +259,7 @@ def integer_dtypes(xp: ModuleType) -> st.SearchStrategy[Type[SignedInteger]]:
     return st.sampled_from(dtypes)
 
 
-def unsigned_integer_dtypes(xp: ModuleType) -> st.SearchStrategy[UnsignedInteger]:
+def unsigned_integer_dtypes(xp: ModuleType) -> st.SearchStrategy[Type[UnsignedInteger]]:
     check_xp_is_compliant(xp)
 
     dtypes, stubs = partition_xp_attrs_and_stubs(xp, UINT_NAMES)
