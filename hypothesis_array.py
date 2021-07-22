@@ -36,13 +36,6 @@ T = TypeVar("T")
 Shape = Tuple[int, ...]
 
 
-def get_xp_name(xp: ModuleType) -> str:
-    try:
-        return xp.__name__
-    except AttributeError:
-        return str(xp)
-
-
 def partition_xp_attrs_and_stubs(
     xp: ModuleType,
     attributes: List[str]
@@ -59,22 +52,22 @@ def partition_xp_attrs_and_stubs(
 
 
 def check_xp_is_compliant(xp: ModuleType):
-    xp_name = get_xp_name(xp)  # TODO cache this and ignore everything if already hit
+    # TODO cache module name and ignore below if already hit
     try:
         array = xp.asarray(True, dtype=xp.bool)
         array.__array_namespace__()
     except AttributeError:
         warn(
-            f"Could not determine whether module '{xp_name}' is an Array API library",
+            f"Could not determine whether module '{xp.__name__}'"
+            " is an Array API library",
             HypothesisWarning,
         )
 
 
 def check_xp_attr(xp: ModuleType, attr: str):
     if not hasattr(xp, attr):
-        xp_name = get_xp_name(xp)
         raise AttributeError(
-            f"Array module '{xp_name}' does not have required attribute '{attr}'"
+            f"Array module '{xp.__name__}' does not have required attribute '{attr}'"
         )
 
 
@@ -84,19 +77,17 @@ class MissingDtypesError(InvalidArgument, AttributeError):
     missing_dtypes: List[str]
 
     def __str__(self):
-        xp_name = get_xp_name(self.xp)
         f_stubs = ", ".join(f"'{stub}'" for stub in self.missing_dtypes)
         return (
-            f"Array module '{xp_name}' does not have"
+            f"Array module '{self.xp.__name__}' does not have"
             f" the following required dtypes in its namespace: {f_stubs}"
         )
 
 
 def warn_on_missing_dtypes(xp: ModuleType, missing_dtypes: List[str]):
-    xp_name = get_xp_name(xp)
     f_stubs = ", ".join(f"'{stub}'" for stub in missing_dtypes)
     warn(
-        f"Array module '{xp_name}' does not have"
+        f"Array module '{xp.__name__}' does not have"
         f" the following dtypes in its namespace: {f_stubs}.",
         HypothesisWarning,
     )
