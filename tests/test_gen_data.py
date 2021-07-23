@@ -4,53 +4,53 @@ from hypothesis import given
 from hypothesis import strategies as st
 from pytest import mark, param
 
-import hypothesis_array as xpst
+import hypothesis_array as _xpst
 
-from .xputils import create_array_module
+from .xputils import DTYPE_NAMES, create_array_module
 
-np = create_array_module()
-npst = xpst.get_strategies_namespace(np)
+xp = create_array_module()
+xpst = _xpst.get_strategies_namespace(xp)
 
 # Currently tests here will fail when running the whole test suite due to the
-# monkey patching method of specifying np.
+# monkey patching method of specifying xp.
 
 
-@given(npst.array_shapes())
+@given(xpst.array_shapes())
 def test_can_generate_array_shapes(shape):
     assert isinstance(shape, tuple)
     assert all(isinstance(i, int) for i in shape)
 
 
-@given(npst.scalar_dtypes())
+@given(xpst.scalar_dtypes())
 def test_can_generate_scalar_dtypes(dtype):
-    assert dtype in (getattr(np, name) for name in xpst.DTYPE_NAMES)
+    assert dtype in (getattr(xp, name) for name in DTYPE_NAMES["all"])
 
 
-@given(npst.boolean_dtypes())
+@given(xpst.boolean_dtypes())
 def test_can_generate_boolean_dtypes(dtype):
-    assert dtype == np.bool
+    assert dtype == xp.bool
 
 
-@given(npst.integer_dtypes())
+@given(xpst.integer_dtypes())
 def test_can_generate_integer_dtypes(dtype):
-    assert dtype in (getattr(np, name) for name in xpst.INT_NAMES)
+    assert dtype in (getattr(xp, name) for name in DTYPE_NAMES["ints"])
 
 
-@given(npst.unsigned_integer_dtypes())
+@given(xpst.unsigned_integer_dtypes())
 def test_can_generate_unsigned_integer_dtypes(dtype):
-    assert dtype in (getattr(np, name) for name in xpst.UINT_NAMES)
+    assert dtype in (getattr(xp, name) for name in DTYPE_NAMES["uints"])
 
 
-@given(npst.floating_dtypes())
+@given(xpst.floating_dtypes())
 def test_can_generate_floating_dtypes(dtype):
-    assert dtype in (getattr(np, name) for name in xpst.FLOAT_NAMES)
+    assert dtype in (getattr(xp, name) for name in DTYPE_NAMES["floats"])
 
 
 @given(st.data())
 def test_can_generate_arrays(data):
-    dtype = data.draw(npst.scalar_dtypes())
-    shape = data.draw(npst.array_shapes())
-    array = data.draw(npst.arrays(dtype, shape))
+    dtype = data.draw(xpst.scalar_dtypes())
+    shape = data.draw(xpst.array_shapes())
+    array = data.draw(xpst.arrays(dtype, shape))
 
     assert array.dtype == dtype
     assert array.ndim == len(shape)
@@ -64,15 +64,15 @@ def test_can_generate_arrays(data):
 @mark.parametrize(
     "strategy",
     [
-        param(npst.scalar_dtypes(), id="scalar"),
-        param(npst.boolean_dtypes(), id="boolean"),
-        param(npst.integer_dtypes(), id="signed_integer"),
-        param(npst.unsigned_integer_dtypes(), id="unsigned_integer"),
-        param(npst.floating_dtypes(), id="floating"),
+        param(xpst.scalar_dtypes(), id="scalar"),
+        param(xpst.boolean_dtypes(), id="boolean"),
+        param(xpst.integer_dtypes(), id="signed_integer"),
+        param(xpst.unsigned_integer_dtypes(), id="unsigned_integer"),
+        param(xpst.floating_dtypes(), id="floating"),
     ],
 )
 def test_can_draw_arrays_from_scalar_strategies(strategy):
-    @given(npst.arrays(strategy, ()))
+    @given(xpst.arrays(strategy, ()))
     def test(_):
         pass
 
@@ -80,7 +80,7 @@ def test_can_draw_arrays_from_scalar_strategies(strategy):
 
 
 def test_can_draw_arrays_from_array_shapes():
-    @given(npst.arrays(np.bool, npst.array_shapes()))
+    @given(xpst.arrays(xp.bool, xpst.array_shapes()))
     def test(_):
         pass
 

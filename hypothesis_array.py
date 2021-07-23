@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from types import SimpleNamespace
-from typing import Any, List, NamedTuple, Optional, Tuple, Type, TypeVar, Union
+from typing import (Any, Iterable, List, NamedTuple, Optional, Sequence, Tuple,
+                    Type, TypeVar, Union)
 from warnings import warn
 
 from hypothesis import strategies as st
@@ -19,11 +20,6 @@ __all__ = [
     "floating_dtypes",
 ]
 
-INT_NAMES = ["int8", "int16", "int32", "int64"]
-UINT_NAMES = ["uint8", "uint16", "uint32", "uint64"]
-FLOAT_NAMES = ["float32", "float64"]
-DTYPE_NAMES = INT_NAMES + UINT_NAMES + FLOAT_NAMES
-DTYPE_NAMES.append("bool")
 
 Boolean = TypeVar("Boolean")
 SignedInteger = TypeVar("SignedInteger")
@@ -40,9 +36,9 @@ class BroadcastableShapes(NamedTuple):
     result_shape: Shape
 
 
-def partition_xp_attrs_and_stubs(
+def partition_attributes_and_stubs(
     xp,
-    attributes: List[str]
+    attributes: Iterable[str]
 ) -> Tuple[List[Any], List[str]]:
     non_stubs = []
     stubs = []
@@ -56,7 +52,6 @@ def partition_xp_attrs_and_stubs(
 
 
 def check_xp_is_compliant(xp):
-    # TODO cache module name and ignore below if already hit
     try:
         array = xp.asarray(True, dtype=xp.bool)
         array.__array_namespace__()
@@ -108,14 +103,14 @@ def get_strategies_namespace(xp) -> SimpleNamespace:
     check_xp_is_compliant(xp)
 
     return SimpleNamespace(
-        from_dtype=lambda *a, **kw: from_dtype(xp, *a, *kw),
-        arrays=lambda *a, **kw: arrays(xp, *a, *kw),
-        array_shapes=lambda *a, **kw: array_shapes(*a, *kw),
-        scalar_dtypes=lambda *a, **kw: scalar_dtypes(xp, *a, *kw),
-        boolean_dtypes=lambda *a, **kw: boolean_dtypes(xp, *a, *kw),
-        integer_dtypes=lambda *a, **kw: integer_dtypes(xp, *a, *kw),
-        unsigned_integer_dtypes=lambda *a, **kw: unsigned_integer_dtypes(xp, *a, *kw),
-        floating_dtypes=lambda *a, **kw: floating_dtypes(xp, *a, *kw),
+        from_dtype=lambda *a, **kw: from_dtype(xp, *a, **kw),
+        arrays=lambda *a, **kw: arrays(xp, *a, **kw),
+        array_shapes=lambda *a, **kw: array_shapes(*a, **kw),
+        scalar_dtypes=lambda *a, **kw: scalar_dtypes(xp, *a, **kw),
+        boolean_dtypes=lambda *a, **kw: boolean_dtypes(xp, *a, **kw),
+        integer_dtypes=lambda *a, **kw: integer_dtypes(xp, *a, **kw),
+        unsigned_integer_dtypes=lambda *a, **kw: unsigned_integer_dtypes(xp, *a, **kw),
+        floating_dtypes=lambda *a, **kw: floating_dtypes(xp, *a, **kw),
     )
 
 
@@ -137,21 +132,27 @@ def from_dtype(
     except AttributeError:
         stubs.append("bool")
 
-    int_dtypes, int_stubs = partition_xp_attrs_and_stubs(xp, INT_NAMES)
+    int_dtypes, int_stubs = partition_attributes_and_stubs(
+        xp, ["int8", "int16", "int32", "int64"]
+    )
     if dtype in int_dtypes:
         check_xp_attr(xp, "iinfo")
         iinfo = xp.iinfo(dtype)
 
         return st.integers(min_value=iinfo.min, max_value=iinfo.max)
 
-    uint_dtypes, uint_stubs = partition_xp_attrs_and_stubs(xp, UINT_NAMES)
+    uint_dtypes, uint_stubs = partition_attributes_and_stubs(
+        xp, ["uint8", "uint16", "uint32", "uint64"]
+    )
     if dtype in uint_dtypes:
         check_xp_attr(xp, "iinfo")
         iinfo = xp.iinfo(dtype)
 
         return st.integers(min_value=iinfo.min, max_value=iinfo.max)
 
-    float_dtypes, float_stubs = partition_xp_attrs_and_stubs(xp, FLOAT_NAMES)
+    float_dtypes, float_stubs = partition_attributes_and_stubs(
+        xp, ["float32", "float64"]
+    )
     if dtype in float_dtypes:
         check_xp_attr(xp, "finfo")
         finfo = xp.finfo(dtype)
@@ -224,7 +225,15 @@ def array_shapes(
 def scalar_dtypes(xp) -> st.SearchStrategy[Type[DataType]]:
     check_xp_is_compliant(xp)
 
-    dtypes, stubs = partition_xp_attrs_and_stubs(xp, DTYPE_NAMES)
+    dtypes, stubs = partition_attributes_and_stubs(
+        xp,
+        [
+            "bool",
+            "int8", "int16", "int32", "int64",
+            "uint8", "uint16", "uint32", "uint64",
+            "float32", "float64",
+        ],
+    )
     if len(dtypes) == 0:
         raise MissingDtypesError(xp, stubs)
     elif len(stubs) != 0:
@@ -242,10 +251,35 @@ def boolean_dtypes(xp) -> st.SearchStrategy[Type[Boolean]]:
         raise MissingDtypesError(xp, ["bool"])
 
 
-def integer_dtypes(xp) -> st.SearchStrategy[Type[SignedInteger]]:
+def check_valid_sizes(category: str, sizes: Sequence[int], valid_sizes: Sequence[int]):
+    invalid_sizes = []
+    for size in sizes:
+        if size not in valid_sizes:
+            invalid_sizes.append(size)
+
+    if len(invalid_sizes) > 0:
+        f_valid_sizes = ", ".join(str(s) for s in valid_sizes)
+        f_invalid_sizes = ", ".join(str(s) for s in invalid_sizes)
+        raise InvalidArgument(
+            f"The following sizes are not valid for {category} dtypes:"
+            f" {f_invalid_sizes} (valid sizes: {f_valid_sizes})"
+        )
+
+
+def numeric_dtype_names(base_name: str, sizes: Sequence[int]):
+    for size in sizes:
+        yield f"{base_name}{size}"
+
+
+def integer_dtypes(
+    xp, sizes: Sequence[int] = (8, 16, 32, 64)
+) -> st.SearchStrategy[Type[SignedInteger]]:
+    check_valid_sizes("int", sizes, (8, 16, 32, 64))
     check_xp_is_compliant(xp)
 
-    dtypes, stubs = partition_xp_attrs_and_stubs(xp, INT_NAMES)
+    dtypes, stubs = partition_attributes_and_stubs(
+        xp, numeric_dtype_names("int", sizes)
+    )
     if len(dtypes) == 0:
         raise MissingDtypesError(xp, stubs)
     elif len(stubs) != 0:
@@ -254,10 +288,15 @@ def integer_dtypes(xp) -> st.SearchStrategy[Type[SignedInteger]]:
     return st.sampled_from(dtypes)
 
 
-def unsigned_integer_dtypes(xp) -> st.SearchStrategy[Type[UnsignedInteger]]:
+def unsigned_integer_dtypes(
+    xp, sizes: Sequence[int] = (8, 16, 32, 64)
+) -> st.SearchStrategy[Type[UnsignedInteger]]:
+    check_valid_sizes("uint", sizes, (8, 16, 32, 64))
     check_xp_is_compliant(xp)
 
-    dtypes, stubs = partition_xp_attrs_and_stubs(xp, UINT_NAMES)
+    dtypes, stubs = partition_attributes_and_stubs(
+        xp, numeric_dtype_names("uint", sizes)
+    )
     if len(dtypes) == 0:
         raise MissingDtypesError(xp, stubs)
     elif len(stubs) != 0:
@@ -266,10 +305,15 @@ def unsigned_integer_dtypes(xp) -> st.SearchStrategy[Type[UnsignedInteger]]:
     return st.sampled_from(dtypes)
 
 
-def floating_dtypes(xp) -> st.SearchStrategy[Type[Float]]:
+def floating_dtypes(
+    xp, sizes: Sequence[int] = (32, 64)
+) -> st.SearchStrategy[Type[Float]]:
+    check_valid_sizes("float", sizes, (32, 64))
     check_xp_is_compliant(xp)
 
-    dtypes, stubs = partition_xp_attrs_and_stubs(xp, FLOAT_NAMES)
+    dtypes, stubs = partition_attributes_and_stubs(
+        xp, numeric_dtype_names("float", sizes)
+    )
     if len(dtypes) == 0:
         raise MissingDtypesError(xp, stubs)
     elif len(stubs) != 0:

@@ -7,7 +7,7 @@ from pytest import raises
 
 import hypothesis_array as xpst
 
-from .xputils import COMPLETE_DTYPE_MAP, create_array_module
+from .xputils import COMPLETE_DTYPE_MAP, DTYPE_NAMES, create_array_module
 
 T = TypeVar("T")
 
@@ -101,7 +101,7 @@ def test_integer_dtypes(dtype_map_and_missing_dtypes):
         attrs_to_del=tuple(missing_dtypes),
     )
 
-    if any(name in dtype_map.keys() for name in xpst.INT_NAMES):
+    if any(name in dtype_map.keys() for name in DTYPE_NAMES["ints"]):
         @given(xpst.integer_dtypes(xp))
         def test(dtype):
             pass
@@ -122,7 +122,7 @@ def test_unsigned_integer_dtypes(dtype_map_and_missing_dtypes):
         attrs_to_del=tuple(missing_dtypes),
     )
 
-    if any(name in dtype_map.keys() for name in xpst.UINT_NAMES):
+    if any(name in dtype_map.keys() for name in DTYPE_NAMES["uints"]):
         @given(xpst.unsigned_integer_dtypes(xp))
         def test(dtype):
             pass
@@ -143,7 +143,7 @@ def test_floating_dtypes(dtype_map_and_missing_dtypes):
         attrs_to_del=tuple(missing_dtypes),
     )
 
-    if any(name in dtype_map.keys() for name in xpst.FLOAT_NAMES):
+    if any(name in dtype_map.keys() for name in DTYPE_NAMES["floats"]):
         @given(xpst.floating_dtypes(xp))
         def test(dtype):
             pass

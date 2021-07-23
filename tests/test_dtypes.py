@@ -8,6 +8,8 @@ from pytest import mark
 
 import hypothesis_array as xpst
 
+from .xputils import DTYPE_NAMES
+
 _xp_supported_dtypes = {
     np: [
         # bool namespace is not the NumPy scalar np.bool_
@@ -40,9 +42,9 @@ for xp, dtypes in _xp_supported_dtypes.items():
 def builtin_from_dtype_name(name: str) -> Type[Union[bool, int, float]]:
     if name == "bool":
         return bool
-    elif name in xpst.INT_NAMES or name in xpst.UINT_NAMES:
+    elif name in DTYPE_NAMES["ints"] or name in DTYPE_NAMES["uints"]:
         return int
-    elif name in xpst.FLOAT_NAMES:
+    elif name in DTYPE_NAMES["floats"]:
         return float
     raise ValueError()
 
