@@ -1,6 +1,6 @@
 from dataclasses import dataclass
-from types import ModuleType, SimpleNamespace
-from typing import Any, List, Optional, Tuple, Type, TypeVar, Union
+from types import SimpleNamespace
+from typing import Any, List, NamedTuple, Optional, Tuple, Type, TypeVar, Union
 from warnings import warn
 
 from hypothesis import strategies as st
@@ -31,13 +31,17 @@ UnsignedInteger = TypeVar("UnsignedInteger")
 Float = TypeVar("Float")
 DataType = Union[Boolean, SignedInteger, UnsignedInteger, Float]
 Array = TypeVar("Array")  # TODO make this a generic or something
-
 T = TypeVar("T")
 Shape = Tuple[int, ...]
 
 
+class BroadcastableShapes(NamedTuple):
+    input_shapes: Tuple[Shape, ...]
+    result_shape: Shape
+
+
 def partition_xp_attrs_and_stubs(
-    xp: ModuleType,
+    xp,
     attributes: List[str]
 ) -> Tuple[List[Any], List[str]]:
     non_stubs = []
@@ -51,7 +55,7 @@ def partition_xp_attrs_and_stubs(
     return non_stubs, stubs
 
 
-def check_xp_is_compliant(xp: ModuleType):
+def check_xp_is_compliant(xp):
     # TODO cache module name and ignore below if already hit
     try:
         array = xp.asarray(True, dtype=xp.bool)
@@ -64,7 +68,7 @@ def check_xp_is_compliant(xp: ModuleType):
         )
 
 
-def check_xp_attr(xp: ModuleType, attr: str):
+def check_xp_attr(xp, attr: str):
     if not hasattr(xp, attr):
         raise AttributeError(
             f"Array module '{xp.__name__}' does not have required attribute '{attr}'"
@@ -73,7 +77,7 @@ def check_xp_attr(xp: ModuleType, attr: str):
 
 @dataclass
 class MissingDtypesError(InvalidArgument, AttributeError):
-    xp: ModuleType
+    xp: Any
     missing_dtypes: List[str]
 
     def __str__(self):
@@ -84,7 +88,7 @@ class MissingDtypesError(InvalidArgument, AttributeError):
         )
 
 
-def warn_on_missing_dtypes(xp: ModuleType, missing_dtypes: List[str]):
+def warn_on_missing_dtypes(xp, missing_dtypes: List[str]):
     f_stubs = ", ".join(f"'{stub}'" for stub in missing_dtypes)
     warn(
         f"Array module '{xp.__name__}' does not have"
@@ -100,7 +104,7 @@ def order_check(name, floor, min_, max_):
         raise InvalidArgument(f"min_{name}={min_} is larger than max_{name}={max_}")
 
 
-def get_strategies_namespace(xp: ModuleType) -> SimpleNamespace:
+def get_strategies_namespace(xp) -> SimpleNamespace:
     check_xp_is_compliant(xp)
 
     return SimpleNamespace(
@@ -119,7 +123,7 @@ def get_strategies_namespace(xp: ModuleType) -> SimpleNamespace:
 # utilises, but this from_dtype() method returns just base strategies.
 
 def from_dtype(
-    xp: ModuleType,
+    xp,
     dtype: DataType,
 ) -> st.SearchStrategy[Union[bool, int, float]]:
     check_xp_is_compliant(xp)
@@ -164,7 +168,7 @@ def from_dtype(
 
 
 def arrays(
-    xp: ModuleType,
+    xp,
     dtype: Union[DataType, st.SearchStrategy[DataType]],
     shape: Union[Shape, st.SearchStrategy[Shape]],
 ) -> st.SearchStrategy[Array]:
@@ -217,7 +221,7 @@ def array_shapes(
 # github.com/data-apis/array-api/issues/152
 
 
-def scalar_dtypes(xp: ModuleType) -> st.SearchStrategy[Type[DataType]]:
+def scalar_dtypes(xp) -> st.SearchStrategy[Type[DataType]]:
     check_xp_is_compliant(xp)
 
     dtypes, stubs = partition_xp_attrs_and_stubs(xp, DTYPE_NAMES)
@@ -229,7 +233,7 @@ def scalar_dtypes(xp: ModuleType) -> st.SearchStrategy[Type[DataType]]:
     return st.sampled_from(dtypes)
 
 
-def boolean_dtypes(xp: ModuleType) -> st.SearchStrategy[Type[Boolean]]:
+def boolean_dtypes(xp) -> st.SearchStrategy[Type[Boolean]]:
     check_xp_is_compliant(xp)
 
     try:
@@ -238,7 +242,7 @@ def boolean_dtypes(xp: ModuleType) -> st.SearchStrategy[Type[Boolean]]:
         raise MissingDtypesError(xp, ["bool"])
 
 
-def integer_dtypes(xp: ModuleType) -> st.SearchStrategy[Type[SignedInteger]]:
+def integer_dtypes(xp) -> st.SearchStrategy[Type[SignedInteger]]:
     check_xp_is_compliant(xp)
 
     dtypes, stubs = partition_xp_attrs_and_stubs(xp, INT_NAMES)
@@ -250,7 +254,7 @@ def integer_dtypes(xp: ModuleType) -> st.SearchStrategy[Type[SignedInteger]]:
     return st.sampled_from(dtypes)
 
 
-def unsigned_integer_dtypes(xp: ModuleType) -> st.SearchStrategy[Type[UnsignedInteger]]:
+def unsigned_integer_dtypes(xp) -> st.SearchStrategy[Type[UnsignedInteger]]:
     check_xp_is_compliant(xp)
 
     dtypes, stubs = partition_xp_attrs_and_stubs(xp, UINT_NAMES)
@@ -262,7 +266,7 @@ def unsigned_integer_dtypes(xp: ModuleType) -> st.SearchStrategy[Type[UnsignedIn
     return st.sampled_from(dtypes)
 
 
-def floating_dtypes(xp: ModuleType) -> st.SearchStrategy[Type[Float]]:
+def floating_dtypes(xp) -> st.SearchStrategy[Type[Float]]:
     check_xp_is_compliant(xp)
 
     dtypes, stubs = partition_xp_attrs_and_stubs(xp, FLOAT_NAMES)
