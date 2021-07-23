@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import (Any, Iterable, List, NamedTuple, Optional, Sequence, Tuple,
                     Type, TypeVar, Union)
@@ -70,21 +69,8 @@ def check_xp_attr(xp, attr: str):
         )
 
 
-@dataclass
-class MissingDtypesError(InvalidArgument, AttributeError):
-    xp: Any
-    missing_dtypes: List[str]
-
-    def __str__(self):
-        f_stubs = ", ".join(f"'{stub}'" for stub in self.missing_dtypes)
-        return (
-            f"Array module '{self.xp.__name__}' does not have"
-            f" the following required dtypes in its namespace: {f_stubs}"
-        )
-
-
-def warn_on_missing_dtypes(xp, missing_dtypes: List[str]):
-    f_stubs = ", ".join(f"'{stub}'" for stub in missing_dtypes)
+def warn_on_missing_dtypes(xp, stubs: List[str]):
+    f_stubs = ", ".join(f"'{stub}'" for stub in stubs)
     warn(
         f"Array module '{xp.__name__}' does not have"
         f" the following dtypes in its namespace: {f_stubs}.",
@@ -119,7 +105,7 @@ def get_strategies_namespace(xp) -> SimpleNamespace:
 
 def from_dtype(
     xp,
-    dtype: DataType,
+    dtypes: DataType,
 ) -> st.SearchStrategy[Union[bool, int, float]]:
     check_xp_is_compliant(xp)
 
@@ -127,7 +113,7 @@ def from_dtype(
 
     try:
         bool_dtype = xp.bool
-        if dtype == bool_dtype:
+        if dtypes == bool_dtype:
             return st.booleans()
     except AttributeError:
         stubs.append("bool")
@@ -135,27 +121,27 @@ def from_dtype(
     int_dtypes, int_stubs = partition_attributes_and_stubs(
         xp, ["int8", "int16", "int32", "int64"]
     )
-    if dtype in int_dtypes:
+    if dtypes in int_dtypes:
         check_xp_attr(xp, "iinfo")
-        iinfo = xp.iinfo(dtype)
+        iinfo = xp.iinfo(dtypes)
 
         return st.integers(min_value=iinfo.min, max_value=iinfo.max)
 
     uint_dtypes, uint_stubs = partition_attributes_and_stubs(
         xp, ["uint8", "uint16", "uint32", "uint64"]
     )
-    if dtype in uint_dtypes:
+    if dtypes in uint_dtypes:
         check_xp_attr(xp, "iinfo")
-        iinfo = xp.iinfo(dtype)
+        iinfo = xp.iinfo(dtypes)
 
         return st.integers(min_value=iinfo.min, max_value=iinfo.max)
 
     float_dtypes, float_stubs = partition_attributes_and_stubs(
         xp, ["float32", "float64"]
     )
-    if dtype in float_dtypes:
+    if dtypes in float_dtypes:
         check_xp_attr(xp, "finfo")
-        finfo = xp.finfo(dtype)
+        finfo = xp.finfo(dtypes)
 
         return st.floats(min_value=finfo.min, max_value=finfo.max)
 
@@ -165,7 +151,7 @@ def from_dtype(
     if len(stubs) > 0:
         warn_on_missing_dtypes(xp, stubs)
 
-    raise InvalidArgument(f"No strategy inference for {dtype}")
+    raise InvalidArgument(f"No strategy inference for {dtypes}")
 
 
 def arrays(
@@ -217,9 +203,20 @@ def array_shapes(
     ).map(tuple)
 
 
-# We assume there are dtype objects part of the array module namespace.
+# We assume there are dtypes objects part of the array module namespace.
 # Note there is a current discussion about whether this is expected behaviour:
 # github.com/data-apis/array-api/issues/152
+
+
+def check_dtypes(xp, dtypes: List[Type[DataType]], stubs: List[str]):
+    if len(dtypes) == 0:
+        f_stubs = ", ".join(f"'{stub}'" for stub in stubs)
+        raise InvalidArgument(
+            f"Array module '{xp.__name__}' does not have"
+            f" the following required dtypes in its namespace: {f_stubs}"
+        )
+    elif len(stubs) > 0:
+        warn_on_missing_dtypes(xp, stubs)
 
 
 def scalar_dtypes(xp) -> st.SearchStrategy[Type[DataType]]:
@@ -234,10 +231,7 @@ def scalar_dtypes(xp) -> st.SearchStrategy[Type[DataType]]:
             "float32", "float64",
         ],
     )
-    if len(dtypes) == 0:
-        raise MissingDtypesError(xp, stubs)
-    elif len(stubs) != 0:
-        warn_on_missing_dtypes(xp, stubs)
+    check_dtypes(xp, dtypes, stubs)
 
     return st.sampled_from(dtypes)
 
@@ -248,7 +242,10 @@ def boolean_dtypes(xp) -> st.SearchStrategy[Type[Boolean]]:
     try:
         return st.just(xp.bool)
     except AttributeError:
-        raise MissingDtypesError(xp, ["bool"])
+        raise InvalidArgument(
+            f"Array module '{xp.__name__}' does not have"
+            f" a 'bool' dtype in its namespace"
+        ) from None
 
 
 def check_valid_sizes(category: str, sizes: Sequence[int], valid_sizes: Sequence[int]):
@@ -280,10 +277,7 @@ def integer_dtypes(
     dtypes, stubs = partition_attributes_and_stubs(
         xp, numeric_dtype_names("int", sizes)
     )
-    if len(dtypes) == 0:
-        raise MissingDtypesError(xp, stubs)
-    elif len(stubs) != 0:
-        warn_on_missing_dtypes(xp, stubs)
+    check_dtypes(xp, dtypes, stubs)
 
     return st.sampled_from(dtypes)
 
@@ -297,10 +291,7 @@ def unsigned_integer_dtypes(
     dtypes, stubs = partition_attributes_and_stubs(
         xp, numeric_dtype_names("uint", sizes)
     )
-    if len(dtypes) == 0:
-        raise MissingDtypesError(xp, stubs)
-    elif len(stubs) != 0:
-        warn_on_missing_dtypes(xp, stubs)
+    check_dtypes(xp, dtypes, stubs)
 
     return st.sampled_from(dtypes)
 
@@ -314,9 +305,6 @@ def floating_dtypes(
     dtypes, stubs = partition_attributes_and_stubs(
         xp, numeric_dtype_names("float", sizes)
     )
-    if len(dtypes) == 0:
-        raise MissingDtypesError(xp, stubs)
-    elif len(stubs) != 0:
-        warn_on_missing_dtypes(xp, stubs)
+    check_dtypes(xp, dtypes, stubs)
 
     return st.sampled_from(dtypes)

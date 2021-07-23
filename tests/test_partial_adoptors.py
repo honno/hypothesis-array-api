@@ -3,6 +3,7 @@ from typing import Dict, List, Tuple, TypeVar
 
 from hypothesis import given
 from hypothesis import strategies as st
+from hypothesis.errors import InvalidArgument
 from pytest import raises
 
 import hypothesis_array as xpst
@@ -60,7 +61,7 @@ def test_scalar_dtypes(dtype_map_and_missing_dtypes):
     )
 
     if len(dtype_map) == 0:
-        with raises(xpst.MissingDtypesError):
+        with raises(InvalidArgument):
             xpst.scalar_dtypes(xp)
 
     else:
@@ -88,7 +89,7 @@ def test_boolean_dtypes(dtype_map_and_missing_dtypes):
         test()
 
     else:
-        with raises(xpst.MissingDtypesError):
+        with raises(InvalidArgument):
             xpst.boolean_dtypes(xp)
 
 
@@ -109,7 +110,7 @@ def test_integer_dtypes(dtype_map_and_missing_dtypes):
         test()
 
     else:
-        with raises(xpst.MissingDtypesError):
+        with raises(InvalidArgument):
             xpst.integer_dtypes(xp)
 
 
@@ -130,7 +131,7 @@ def test_unsigned_integer_dtypes(dtype_map_and_missing_dtypes):
         test()
 
     else:
-        with raises(xpst.MissingDtypesError):
+        with raises(InvalidArgument):
             xpst.unsigned_integer_dtypes(xp)
 
 
@@ -151,5 +152,5 @@ def test_floating_dtypes(dtype_map_and_missing_dtypes):
         test()
 
     else:
-        with raises(xpst.MissingDtypesError):
+        with raises(InvalidArgument):
             xpst.floating_dtypes(xp)
