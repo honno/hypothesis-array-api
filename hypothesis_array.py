@@ -213,11 +213,11 @@ class ArrayStrategy(st.SearchStrategy):
 def arrays(
     xp,
     dtype: Union[DataType, st.SearchStrategy[DataType]],
-    shape: Union[Shape, st.SearchStrategy[Shape]],
+    shape: Union[int, Shape, st.SearchStrategy[Shape]],
     *,
     fill: Optional[st.SearchStrategy[Any]] = None,
 ) -> st.SearchStrategy[Array]:
-    # TODO do these only once... maybe have _arrays() which is recursive instead
+    # TODO do these only once... maybe have _arrays() which is used recursively instead
     check_xp_is_compliant(xp)
     check_xp_attr(xp, "asarray")
     check_xp_attr(xp, "empty")
@@ -227,6 +227,9 @@ def arrays(
         return dtype.flatmap(lambda d: arrays(xp, d, shape))
     if isinstance(shape, st.SearchStrategy):
         return shape.flatmap(lambda s: arrays(xp, dtype, s))
+
+    if isinstance(shape, int):
+        shape = (shape,)
 
     elements = from_dtype(xp, dtype)
 

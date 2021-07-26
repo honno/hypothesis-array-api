@@ -4,9 +4,8 @@ from typing import Any, Tuple
 
 import numpy as np
 
-# I don't use _array_api from github.com/numpy/numpy/pull/18585 yet as I'd
-# rather work in the mode of not building NumPy from source to use this test
-# suite
+# TODO use numpy._array_api when the Array API support PR goes through:
+#      github.com/numpy/numpy/pull/18585 yet as I'd
 
 __all__ = [
     "DTYPE_NAMES",
@@ -53,9 +52,17 @@ def create_array_module(
         "iinfo": np.iinfo,
         "finfo": np.finfo,
         "asarray": np.asarray,
-        "empty": np.empty,
-        "full": np.full,
         "reshape": np.reshape,
+        "empty": np.empty,
+        "zeros": np.zeros,
+        "ones": np.ones,
+        "zeros_like": np.zeros_like,
+        "ones_like": np.ones_like,
+        "full": np.full,
+        "any": np.any,
+        "all": np.all,
+        "nonzero": np.nonzero,
+        "logical_or": np.logical_or,
     }
     attributes.update(COMPLETE_DTYPE_MAP)
 
