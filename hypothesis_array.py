@@ -181,7 +181,7 @@ class ArrayStrategy(st.SearchStrategy):
 
             else:
                 result = self.xp.empty(self.array_size, dtype=self.dtype)
-                for i in range(self.shape[0]):
+                for i in range(self.array_size):
                     self.set_element(data, result, i)
 
         else:
