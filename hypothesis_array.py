@@ -172,14 +172,22 @@ class ArrayStrategy(st.SearchStrategy):
 
     def do_draw(self, data):
         if 0 in self.shape:
-            return self.xp.empty(dtype=self.dtype, shape=self.shape)
-
-        result = self.xp.empty(shape=self.array_size, dtype=self.dtype)
+            return self.xp.empty(self.shape, dtype=self.dtype)
 
         if self.fill.is_empty:
-            for i in range(self.shape[0]):
-                self.set_element(data, result, i)
+            if len(self.shape) == 0:
+                val = data.draw(self.element_strategy)
+                return self.xp.asarray(val, dtype=self.dtype)
+
+            else:
+                result = self.xp.empty(self.array_size, dtype=self.dtype)
+                for i in range(self.shape[0]):
+                    self.set_element(data, result, i)
+
         else:
+            fill_element = data.draw(self.fill)
+            result = self.xp.full(self.array_size, fill_element, dtype=self.dtype)
+
             elements = cu.many(
                 data,
                 min_size=0,
@@ -187,7 +195,7 @@ class ArrayStrategy(st.SearchStrategy):
                 average_size=math.sqrt(self.array_size),
             )
 
-            needs_fill = self.xp.full((self.array_size,), True, dtype=self.xp.bool)
+            needs_fill = self.xp.full(self.array_size, True, dtype=self.xp.bool)
 
             while elements.more():
                 i = cu.integer_range(data, 0, self.array_size - 1)
@@ -196,8 +204,6 @@ class ArrayStrategy(st.SearchStrategy):
                     continue
                 self.set_element(data, result, i)
                 needs_fill[i] = False
-
-            self.set_element(data, result, needs_fill, self.fill)
 
         result = self.xp.reshape(result, self.shape)
 
@@ -208,6 +214,8 @@ def arrays(
     xp,
     dtype: Union[DataType, st.SearchStrategy[DataType]],
     shape: Union[Shape, st.SearchStrategy[Shape]],
+    *,
+    fill: Optional[st.SearchStrategy[Any]] = None,
 ) -> st.SearchStrategy[Array]:
     # TODO do these only once... maybe have _arrays() which is recursive instead
     check_xp_is_compliant(xp)
@@ -222,7 +230,10 @@ def arrays(
 
     elements = from_dtype(xp, dtype)
 
-    return ArrayStrategy(xp, elements, dtype, shape, elements)
+    if fill is None:
+        fill = elements
+
+    return ArrayStrategy(xp, elements, dtype, shape, fill)
 
 
 def array_shapes(

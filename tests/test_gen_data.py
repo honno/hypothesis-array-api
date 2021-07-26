@@ -85,3 +85,8 @@ def test_can_draw_arrays_from_array_shapes():
         pass
 
     test()
+
+
+@given(xpst.arrays(xp.bool, (), fill=st.nothing()))
+def test_can_generate_0d_arrays_with_empty_fill(array):
+    pass
