@@ -1,3 +1,4 @@
+import math
 from types import SimpleNamespace
 from typing import (Any, Iterable, List, NamedTuple, Optional, Sequence, Tuple,
                     Type, TypeVar, Union)
@@ -5,6 +6,7 @@ from warnings import warn
 
 from hypothesis import strategies as st
 from hypothesis.errors import HypothesisWarning, InvalidArgument
+from hypothesis.internal.conjecture import utils as cu
 from hypothesis.internal.validation import check_type
 
 __all__ = [
@@ -154,6 +156,54 @@ def from_dtype(
     raise InvalidArgument(f"No strategy inference for {dtypes}")
 
 
+class ArrayStrategy(st.SearchStrategy):
+    def __init__(self, xp, element_strategy, dtype, shape, fill):
+        self.xp = xp
+        self.element_strategy = element_strategy
+        self.dtype = dtype
+        self.shape = shape
+        self.fill = fill
+        self.array_size = math.prod(shape)
+
+    def set_element(self, data, result, idx, strategy=None):
+        strategy = strategy or self.element_strategy
+        val = data.draw(strategy)
+        result[idx] = val
+
+    def do_draw(self, data):
+        if 0 in self.shape:
+            return self.xp.empty(dtype=self.dtype, shape=self.shape)
+
+        result = self.xp.empty(shape=self.array_size, dtype=self.dtype)
+
+        if self.fill.is_empty:
+            for i in range(self.shape[0]):
+                self.set_element(data, result, i)
+        else:
+            elements = cu.many(
+                data,
+                min_size=0,
+                max_size=self.array_size,
+                average_size=math.sqrt(self.array_size),
+            )
+
+            needs_fill = self.xp.full((self.array_size,), True, dtype=self.xp.bool)
+
+            while elements.more():
+                i = cu.integer_range(data, 0, self.array_size - 1)
+                if not needs_fill[i]:
+                    elements.reject()
+                    continue
+                self.set_element(data, result, i)
+                needs_fill[i] = False
+
+            self.set_element(data, result, needs_fill, self.fill)
+
+        result = self.xp.reshape(result, self.shape)
+
+        return result
+
+
 def arrays(
     xp,
     dtype: Union[DataType, st.SearchStrategy[DataType]],
@@ -162,6 +212,8 @@ def arrays(
     # TODO do these only once... maybe have _arrays() which is recursive instead
     check_xp_is_compliant(xp)
     check_xp_attr(xp, "asarray")
+    check_xp_attr(xp, "empty")
+    # TODO check type promotion works
 
     if isinstance(dtype, st.SearchStrategy):
         return dtype.flatmap(lambda d: arrays(xp, d, shape))
@@ -170,14 +222,7 @@ def arrays(
 
     elements = from_dtype(xp, dtype)
 
-    if len(shape) == 0:
-        return elements.map(lambda e: xp.asarray(e, dtype=dtype))
-
-    strategy = elements
-    for dimension_size in reversed(shape):
-        strategy = st.lists(strategy, min_size=dimension_size, max_size=dimension_size)
-
-    return strategy.map(lambda array: xp.asarray(array, dtype=dtype))
+    return ArrayStrategy(xp, elements, dtype, shape, elements)
 
 
 def array_shapes(

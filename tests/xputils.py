@@ -53,6 +53,9 @@ def create_array_module(
         "iinfo": np.iinfo,
         "finfo": np.finfo,
         "asarray": np.asarray,
+        "empty": np.empty,
+        "full": np.full,
+        "reshape": np.reshape,
     }
     attributes.update(COMPLETE_DTYPE_MAP)
 
