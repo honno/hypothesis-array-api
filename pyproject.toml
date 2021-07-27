@@ -1,9 +1,15 @@
 [tool.poetry]
 name = "hypothesis-array-api"
-version = "0.1.0"
-description = ""
+version = "0.0.1"
+description = "Hypothesis strategies for Array API libraries"
 authors = ["Matthew Barber <quitesimplymatt@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/honno/hypothesis-array-api"
 packages = [{include = "hypothesis_array.py"}]
+classifiers = [
+    "Framework :: Hypothesis"
+]
 
 [tool.poetry.dependencies]
 python = "^3.7"
