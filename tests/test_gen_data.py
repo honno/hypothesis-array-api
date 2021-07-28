@@ -1,21 +1,16 @@
 from math import prod
 
-from hypothesis import given
+from hypothesis import given, settings
 from hypothesis import strategies as st
+from pytest import mark
 
-import hypothesis_array as _xpst
+from hypothesis_array import get_strategies_namespace
 
 from .common.debug import minimal
 from .xputils import DTYPE_NAMES, create_array_module
 
 xp = create_array_module()
-xpst = _xpst.get_strategies_namespace(xp)
-
-
-@given(xpst.array_shapes())
-def test_can_generate_array_shapes(shape):
-    assert isinstance(shape, tuple)
-    assert all(isinstance(i, int) for i in shape)
+xpst = get_strategies_namespace(xp)
 
 
 @given(xpst.scalar_dtypes())
@@ -43,17 +38,66 @@ def test_can_generate_floating_dtypes(dtype):
     assert dtype in (getattr(xp, name) for name in DTYPE_NAMES["floats"])
 
 
+def test_minimise_scalar_dtypes():
+    assert minimal(xpst.scalar_dtypes()) == xp.bool
+
+
+@mark.parametrize(
+    "strategy_func, sizes",
+    [
+        (xpst.integer_dtypes, 8),
+        (xpst.unsigned_integer_dtypes, 8),
+        (xpst.floating_dtypes, 32),
+    ]
+)
+def test_can_specify_size_as_an_int(strategy_func, sizes):
+    strategy_func(sizes)
+
+
+@given(xpst.array_shapes())
+def test_can_generate_array_shapes(shape):
+    assert isinstance(shape, tuple)
+    assert all(isinstance(i, int) for i in shape)
+
+
+@settings(deadline=None, max_examples=10)
+@given(st.integers(0, 10), st.integers(0, 9), st.integers(0), st.integers(0))
+def test_minimise_array_shapes(min_dims, dim_range, min_side, side_range):
+    strategy = xpst.array_shapes(
+        min_dims=min_dims,
+        max_dims=min_dims + dim_range,
+        min_side=min_side,
+        max_side=min_side + side_range,
+    )
+    smallest = minimal(strategy)
+    assert len(smallest) == min_dims and all(k == min_side for k in smallest)
+
+
+@mark.parametrize(
+    "kwargs", [{"min_side": 100}, {"min_dims": 15}, {"min_dims": 32}]
+)
+def test_interesting_array_shapes_argument(kwargs):
+    xpst.array_shapes(**kwargs).example()
+
+
 @given(st.data())
-def test_can_generate_arrays(data):
+def test_can_generate_arrays_from_scalars(data):
     dtype = data.draw(xpst.scalar_dtypes())
-    shape = data.draw(xpst.array_shapes())
-    array = data.draw(xpst.arrays(dtype, shape))
+    array = data.draw(xpst.arrays(dtype, ()))
 
     assert array.dtype == dtype
+    # TODO check array.__array_namespace__()
+
+
+@given(st.data())
+def test_can_generate_arrays_from_shapes(data):
+    shape = data.draw(xpst.array_shapes())
+    array = data.draw(xpst.arrays(xp.bool, shape))
+
     assert array.ndim == len(shape)
     assert array.shape == shape
     assert array.size == prod(shape)
-    # TODO check array.__array_namespace__() exists once xputils is compliant
+    # TODO check array.__array_namespace__()
 
 
 @given(st.data())
@@ -89,7 +133,7 @@ def test_can_handle_zero_dimensions(array):
     assert array.shape == (1, 0, 1)
 
 
-@given(xpst.arrays(xp.uint32, (5, 5)), st.just(xp.zeros((5, 5), dtype=xp.int8)))
+@given(xpst.arrays(xp.uint32, (5, 5)), st.just(xp.zeros((5, 5), dtype=xp.uint32)))
 def test_generates_unsigned_ints(array, zeros):
     assert xp.all(array >= zeros)
 
@@ -98,6 +142,14 @@ def test_generates_and_minimizes():
     strategy = xpst.arrays(xp.float32, (2, 2))
     zeros = xp.zeros(shape=(2, 2))
     assert xp.all(minimal(strategy) == zeros)
+
+
+def test_minimise_array_strategy():
+    smallest = minimal(
+        xpst.arrays(xpst.scalar_dtypes(), xpst.array_shapes(max_dims=3, max_side=3)),
+    )
+    assert smallest.dtype == xp.bool
+    assert not xp.any(smallest)
 
 
 def test_can_minimize_large_arrays():

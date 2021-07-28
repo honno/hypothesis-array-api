@@ -28,8 +28,8 @@ UnsignedInteger = TypeVar("UnsignedInteger")
 Float = TypeVar("Float")
 DataType = Union[Boolean, SignedInteger, UnsignedInteger, Float]
 Array = TypeVar("Array")  # TODO make this a generic or something
-T = TypeVar("T")
 Shape = Tuple[int, ...]
+T = TypeVar("T")
 
 
 class BroadcastableShapes(NamedTuple):
@@ -52,7 +52,7 @@ def partition_attributes_and_stubs(
     return non_stubs, stubs
 
 
-def check_xp_is_compliant(xp):
+def infer_xp_is_compliant(xp):
     try:
         array = xp.asarray(True, dtype=xp.bool)
         array.__array_namespace__()
@@ -88,7 +88,7 @@ def order_check(name, floor, min_, max_):
 
 
 def get_strategies_namespace(xp) -> SimpleNamespace:
-    check_xp_is_compliant(xp)
+    infer_xp_is_compliant(xp)
 
     return SimpleNamespace(
         from_dtype=lambda *a, **kw: from_dtype(xp, *a, **kw),
@@ -109,7 +109,7 @@ def from_dtype(
     xp,
     dtypes: DataType,
 ) -> st.SearchStrategy[Union[bool, int, float]]:
-    check_xp_is_compliant(xp)
+    infer_xp_is_compliant(xp)
 
     stubs = []
 
@@ -218,9 +218,10 @@ def arrays(
     fill: Optional[st.SearchStrategy[Any]] = None,
 ) -> st.SearchStrategy[Array]:
     # TODO do these only once... maybe have _arrays() which is used recursively instead
-    check_xp_is_compliant(xp)
-    check_xp_attr(xp, "asarray")
+    infer_xp_is_compliant(xp)
     check_xp_attr(xp, "empty")
+    check_xp_attr(xp, "full")
+    check_xp_attr(xp, "reshape")
     # TODO check type promotion works
 
     if isinstance(dtype, st.SearchStrategy):
@@ -279,7 +280,7 @@ def check_dtypes(xp, dtypes: List[Type[DataType]], stubs: List[str]):
 
 
 def scalar_dtypes(xp) -> st.SearchStrategy[Type[DataType]]:
-    check_xp_is_compliant(xp)
+    infer_xp_is_compliant(xp)
 
     dtypes, stubs = partition_attributes_and_stubs(
         xp,
@@ -296,7 +297,7 @@ def scalar_dtypes(xp) -> st.SearchStrategy[Type[DataType]]:
 
 
 def boolean_dtypes(xp) -> st.SearchStrategy[Type[Boolean]]:
-    check_xp_is_compliant(xp)
+    infer_xp_is_compliant(xp)
 
     try:
         return st.just(xp.bool)
@@ -328,10 +329,13 @@ def numeric_dtype_names(base_name: str, sizes: Sequence[int]):
 
 
 def integer_dtypes(
-    xp, sizes: Sequence[int] = (8, 16, 32, 64)
+    xp, sizes: Union[int, Sequence[int]] = (8, 16, 32, 64)
 ) -> st.SearchStrategy[Type[SignedInteger]]:
+    infer_xp_is_compliant(xp)
+
+    if isinstance(sizes, int):
+        sizes = (sizes,)
     check_valid_sizes("int", sizes, (8, 16, 32, 64))
-    check_xp_is_compliant(xp)
 
     dtypes, stubs = partition_attributes_and_stubs(
         xp, numeric_dtype_names("int", sizes)
@@ -342,10 +346,13 @@ def integer_dtypes(
 
 
 def unsigned_integer_dtypes(
-    xp, sizes: Sequence[int] = (8, 16, 32, 64)
+    xp, sizes: Union[int, Sequence[int]] = (8, 16, 32, 64)
 ) -> st.SearchStrategy[Type[UnsignedInteger]]:
-    check_valid_sizes("uint", sizes, (8, 16, 32, 64))
-    check_xp_is_compliant(xp)
+    infer_xp_is_compliant(xp)
+
+    if isinstance(sizes, int):
+        sizes = (sizes,)
+    check_valid_sizes("int", sizes, (8, 16, 32, 64))
 
     dtypes, stubs = partition_attributes_and_stubs(
         xp, numeric_dtype_names("uint", sizes)
@@ -356,10 +363,13 @@ def unsigned_integer_dtypes(
 
 
 def floating_dtypes(
-    xp, sizes: Sequence[int] = (32, 64)
+    xp, sizes: Union[int, Sequence[int]] = (32, 64)
 ) -> st.SearchStrategy[Type[Float]]:
-    check_valid_sizes("float", sizes, (32, 64))
-    check_xp_is_compliant(xp)
+    infer_xp_is_compliant(xp)
+
+    if isinstance(sizes, int):
+        sizes = (sizes,)
+    check_valid_sizes("int", sizes, (32, 64))
 
     dtypes, stubs = partition_attributes_and_stubs(
         xp, numeric_dtype_names("float", sizes)
