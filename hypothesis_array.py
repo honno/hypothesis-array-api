@@ -200,12 +200,11 @@ class ArrayStrategy(st.SearchStrategy):
             fill_value = data.draw(self.fill)
             result = self.xp.full(self.array_size, fill_value, dtype=self.dtype)
 
-            if self.unique and self.xp.all(self.xp.isnan(result)):
+            if self.unique and not self.xp.all(self.xp.isnan(result)):
                 raise InvalidArgument(
-                    "Cannot fill unique array with non-NaN values."
-                    f" Array module '{self.xp.__name__}' could not convert"
-                    f" fill value '{fill_value}' to NaN.\n"
-                    f"Filled array: '{result}'"
+                    f" Array module '{self.xp.__name__}' did not recognise"
+                    f" fill value '{fill_value}' as NaN."
+                    " Cannot fill unique array with non-NaN values."
                 )
 
             elements = cu.many(

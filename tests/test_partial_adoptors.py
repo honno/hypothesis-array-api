@@ -8,7 +8,7 @@ from pytest import raises
 
 import hypothesis_array as xpst
 
-from .xputils import COMPLETE_DTYPE_MAP, DTYPE_NAMES, create_array_module
+from .xputils import DTYPE_NAMES, DTYPES_MAP, create_array_module
 
 T = TypeVar("T")
 
@@ -19,7 +19,7 @@ def dtype_maps(draw) -> st.SearchStrategy[Tuple[Dict[str, T], List[str]]]:
     dtype_map = {}
     missing_dtypes = []
 
-    for dtype_name, dtype in COMPLETE_DTYPE_MAP.items():
+    for dtype_name, dtype in DTYPES_MAP.items():
         if draw(booleans):
             dtype_map[dtype_name] = dtype
         else:

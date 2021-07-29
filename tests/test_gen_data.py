@@ -13,9 +13,6 @@ from .xputils import DTYPE_NAMES, create_array_module
 xp = create_array_module()
 xpst = get_strategies_namespace(xp)
 
-# ------------------------------------------------------------------------------
-# Scalars
-
 
 @given(xpst.scalar_dtypes())
 def test_can_generate_scalar_dtypes(dtype):
@@ -58,10 +55,6 @@ def test_can_specify_size_as_an_int(strat_func, sizes):
     strat_func(sizes)
 
 
-# ------------------------------------------------------------------------------
-# Shapes
-
-
 @given(xpst.array_shapes())
 def test_can_generate_array_shapes(shape):
     assert isinstance(shape, tuple)
@@ -86,10 +79,6 @@ def test_minimise_array_shapes(min_dims, dim_range, min_side, side_range):
 )
 def test_interesting_array_shapes_argument(kwargs):
     xpst.array_shapes(**kwargs).example()
-
-
-# ------------------------------------------------------------------------------
-# Arrays
 
 
 @given(st.data())
@@ -151,15 +140,14 @@ def test_can_handle_zero_dimensions(array):
     assert array.shape == (1, 0, 1)
 
 
-@given(xpst.arrays(xp.uint32, (5, 5)), st.just(xp.zeros((5, 5), dtype=xp.uint32)))
-def test_generates_unsigned_ints(array, zeros):
-    assert xp.all(array >= zeros)
+@given(xpst.arrays(xp.uint32, (5, 5)))
+def test_generates_unsigned_ints(array):
+    assert xp.all(array >= 0)
 
 
 def test_generates_and_minimizes():
     strat = xpst.arrays(xp.float32, (2, 2))
-    zeros = xp.zeros(shape=(2, 2))
-    assert xp.all(minimal(strat) == zeros)
+    assert xp.all(minimal(strat) == 0)
 
 
 def test_minimise_array_strategy():
@@ -177,9 +165,7 @@ def test_can_minimize_large_arrays():
         timeout_after=60,
     )
 
-    zeros = xp.zeros_like(array)
-    ones = xp.ones_like(array)
-    assert xp.all(xp.logical_or(array == zeros, array == ones))
+    assert xp.all(xp.logical_or(array == 0, array == 1))
 
     # xp.nonzero() is optional for Array API libraries
     if hasattr(xp, "nonzero"):
