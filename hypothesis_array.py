@@ -54,7 +54,7 @@ def partition_attributes_and_stubs(
 
 def infer_xp_is_compliant(xp):
     try:
-        array = xp.asarray(True, dtype=xp.bool)
+        array = xp.asarray(0, dtype=xp.int8)
         array.__array_namespace__()
     except AttributeError:
         warn(
