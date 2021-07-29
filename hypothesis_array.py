@@ -246,6 +246,7 @@ def arrays(
     dtype: Union[DataType, st.SearchStrategy[DataType]],
     shape: Union[int, Shape, st.SearchStrategy[Shape]],
     *,
+    elements: Optional[st.SearchStrategy] = None,
     fill: Optional[st.SearchStrategy[Any]] = None,
     unique: bool = False,
 ) -> st.SearchStrategy[Array]:
@@ -257,17 +258,22 @@ def arrays(
     # TODO check type promotion works
 
     if isinstance(dtype, st.SearchStrategy):
-        return dtype.flatmap(lambda d: arrays(xp, d, shape, fill=fill, unique=unique))
+        return dtype.flatmap(
+            lambda d: arrays(xp, d, shape, elements=elements, fill=fill, unique=unique)
+        )
     if isinstance(shape, st.SearchStrategy):
-        return shape.flatmap(lambda s: arrays(xp, dtype, s, fill=fill, unique=unique))
+        return shape.flatmap(
+            lambda s: arrays(xp, dtype, s, elements=elements, fill=fill, unique=unique)
+        )
 
     if isinstance(shape, int):
         shape = (shape,)
 
-    elements = from_dtype(xp, dtype)
+    if elements is None:
+        elements = from_dtype(xp, dtype)
 
     if fill is None:
-        if unique:
+        if unique or not elements.has_reusable_values:
             fill = st.nothing()
         else:
             fill = elements
