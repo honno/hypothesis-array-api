@@ -43,7 +43,6 @@ def test_from_dtype(dtype_map_and_missing_dtypes):
 
 def test_error_on_missing_attr():
     xp = SimpleNamespace(__name__="foo", int8=None)
-    xp = xp
     with raises(
         AttributeError,
         match="'foo' does not have required attribute 'iinfo'"

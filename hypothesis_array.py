@@ -157,36 +157,56 @@ def from_dtype(
 
 
 class ArrayStrategy(st.SearchStrategy):
-    def __init__(self, xp, element_strategy, dtype, shape, fill):
+    def __init__(self, xp, elements, dtype, shape, fill, unique):
         self.xp = xp
-        self.element_strategy = element_strategy
+        self.elements = elements
         self.dtype = dtype
         self.shape = shape
         self.fill = fill
+        self.unique = unique
         self.array_size = math.prod(shape)
-
-    def set_element(self, data, result, idx, strategy=None):
-        strategy = strategy or self.element_strategy
-        val = data.draw(strategy)
-        result[idx] = val
 
     def do_draw(self, data):
         if 0 in self.shape:
             return self.xp.empty(self.shape, dtype=self.dtype)
 
         if self.fill.is_empty:
-            if len(self.shape) == 0:
-                val = data.draw(self.element_strategy)
-                return self.xp.asarray(val, dtype=self.dtype)
-
-            else:
+            if self.unique:
                 result = self.xp.empty(self.array_size, dtype=self.dtype)
-                for i in range(self.array_size):
-                    self.set_element(data, result, i)
-
+                seen = set()
+                elements = cu.many(
+                    data,
+                    min_size=self.array_size,
+                    max_size=self.array_size,
+                    average_size=self.array_size,
+                )
+                i = 0
+                while elements.more():
+                    result[i] = data.draw(self.elements)
+                    if result[i] not in seen:
+                        seen.add(result[i])
+                        i += 1
+                    else:
+                        elements.reject()
+            else:
+                if len(self.shape) == 0:
+                    val = data.draw(self.elements)
+                    return self.xp.asarray(val, dtype=self.dtype)
+                else:
+                    result = self.xp.empty(self.array_size, dtype=self.dtype)
+                    for i in range(self.array_size):
+                        result[i] = data.draw(self.elements)
         else:
-            fill_element = data.draw(self.fill)
-            result = self.xp.full(self.array_size, fill_element, dtype=self.dtype)
+            fill_value = data.draw(self.fill)
+            result = self.xp.full(self.array_size, fill_value, dtype=self.dtype)
+
+            if self.unique and self.xp.all(self.xp.isnan(result)):
+                raise InvalidArgument(
+                    "Cannot fill unique array with non-NaN values."
+                    f" Array module '{self.xp.__name__}' could not convert"
+                    f" fill value '{fill_value}' to NaN.\n"
+                    f"Filled array: '{result}'"
+                )
 
             elements = cu.many(
                 data,
@@ -196,13 +216,24 @@ class ArrayStrategy(st.SearchStrategy):
             )
 
             needs_fill = self.xp.full(self.array_size, True, dtype=self.xp.bool)
+            seen = set()
 
             while elements.more():
                 i = cu.integer_range(data, 0, self.array_size - 1)
                 if not needs_fill[i]:
                     elements.reject()
                     continue
-                self.set_element(data, result, i)
+
+                element_value = data.draw(self.elements)
+                result[i] = element_value
+
+                if self.unique:
+                    if element_value in seen:
+                        elements.reject()
+                        continue
+                    else:
+                        seen.add(element_value)
+
                 needs_fill[i] = False
 
         result = self.xp.reshape(result, self.shape)
@@ -216,6 +247,7 @@ def arrays(
     shape: Union[int, Shape, st.SearchStrategy[Shape]],
     *,
     fill: Optional[st.SearchStrategy[Any]] = None,
+    unique: bool = False,
 ) -> st.SearchStrategy[Array]:
     # TODO do these only once... maybe have _arrays() which is used recursively instead
     infer_xp_is_compliant(xp)
@@ -225,9 +257,9 @@ def arrays(
     # TODO check type promotion works
 
     if isinstance(dtype, st.SearchStrategy):
-        return dtype.flatmap(lambda d: arrays(xp, d, shape))
+        return dtype.flatmap(lambda d: arrays(xp, d, shape, fill=fill, unique=unique))
     if isinstance(shape, st.SearchStrategy):
-        return shape.flatmap(lambda s: arrays(xp, dtype, s))
+        return shape.flatmap(lambda s: arrays(xp, dtype, s, fill=fill, unique=unique))
 
     if isinstance(shape, int):
         shape = (shape,)
@@ -235,9 +267,12 @@ def arrays(
     elements = from_dtype(xp, dtype)
 
     if fill is None:
-        fill = elements
+        if unique:
+            fill = st.nothing()
+        else:
+            fill = elements
 
-    return ArrayStrategy(xp, elements, dtype, shape, fill)
+    return ArrayStrategy(xp, elements, dtype, shape, fill, unique)
 
 
 def array_shapes(

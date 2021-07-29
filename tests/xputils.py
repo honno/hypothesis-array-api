@@ -62,6 +62,7 @@ def create_array_module(
         "any": np.any,
         "all": np.all,
         "nonzero": np.nonzero,
+        "unique": np.unique,
         "logical_or": np.logical_or,
     }
     attributes.update(COMPLETE_DTYPE_MAP)

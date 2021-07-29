@@ -12,6 +12,9 @@ from .xputils import DTYPE_NAMES, create_array_module
 xp = create_array_module()
 xpst = get_strategies_namespace(xp)
 
+# ------------------------------------------------------------------------------
+# Scalars
+
 
 @given(xpst.scalar_dtypes())
 def test_can_generate_scalar_dtypes(dtype):
@@ -54,6 +57,10 @@ def test_can_specify_size_as_an_int(strategy_func, sizes):
     strategy_func(sizes)
 
 
+# ------------------------------------------------------------------------------
+# Shapes
+
+
 @given(xpst.array_shapes())
 def test_can_generate_array_shapes(shape):
     assert isinstance(shape, tuple)
@@ -78,6 +85,10 @@ def test_minimise_array_shapes(min_dims, dim_range, min_side, side_range):
 )
 def test_interesting_array_shapes_argument(kwargs):
     xpst.array_shapes(**kwargs).example()
+
+
+# ------------------------------------------------------------------------------
+# Arrays
 
 
 @given(st.data())
@@ -115,6 +126,12 @@ def test_can_draw_arrays_from_scalar_strategies(data):
 
 @given(xpst.arrays(xp.bool, xpst.array_shapes()))
 def test_can_draw_arrays_from_shapes_strategy(array):
+    assert array.dtype == xp.bool
+    # TODO check array.__array_namespace__()
+
+
+@given(xpst.arrays(xp.bool, st.integers(0, 100)))
+def test_can_draw_arrays_from_integers_strategy_as_shape(array):
     assert array.dtype == xp.bool
     # TODO check array.__array_namespace__()
 
@@ -163,9 +180,17 @@ def test_can_minimize_large_arrays():
     ones = xp.ones_like(array)
     assert xp.all(xp.logical_or(array == zeros, array == ones))
 
-    # nonzero() is optional for Array API libraries as of 2021-07-26
+    # xp.nonzero() is optional for Array API libraries
     if hasattr(xp, "nonzero"):
         nonzero_count = 0
         for nonzero_indices in xp.nonzero(array):
             nonzero_count += nonzero_indices.size
         assert nonzero_count in (1, array.size - 1)
+
+
+@given(xpst.arrays(xp.int8, st.integers(0, 20), unique=True))
+def test_array_values_are_unique(array):
+    # xp.unique() is optional for Array API libraries
+    if hasattr(xp, "unique"):
+        unique_values = xp.unique(array)
+        assert unique_values.size == array.size
