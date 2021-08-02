@@ -1,7 +1,7 @@
 import math
 from types import SimpleNamespace
-from typing import (Any, Iterable, List, NamedTuple, Optional, Sequence, Tuple,
-                    Type, TypeVar, Union)
+from typing import (Any, Iterable, List, Mapping, NamedTuple, Optional,
+                    Sequence, Tuple, Type, TypeVar, Union)
 from warnings import warn
 
 from hypothesis import strategies as st
@@ -107,7 +107,14 @@ def get_strategies_namespace(xp) -> SimpleNamespace:
 
 def from_dtype(
     xp,
-    dtypes: DataType,
+    dtype: DataType,
+    *,
+    min_value: Optional[Union[int, float]] = None,
+    max_value: Optional[Union[int, float]] = None,
+    allow_nan: Optional[bool] = None,
+    allow_infinity: Optional[bool] = None,
+    exclude_min: Optional[bool] = None,
+    exclude_max: Optional[bool] = None,
 ) -> st.SearchStrategy[Union[bool, int, float]]:
     infer_xp_is_compliant(xp)
 
@@ -115,45 +122,70 @@ def from_dtype(
 
     try:
         bool_dtype = xp.bool
-        if dtypes == bool_dtype:
+        if dtype == bool_dtype:
             return st.booleans()
     except AttributeError:
         stubs.append("bool")
 
+    def minmax_values_kw(info):
+        kw = {}
+
+        if min_value is None:
+            kw["min_value"] = info.min
+        else:
+            if min_value < info.min:
+                raise InvalidArgument(
+                    f"dtype {dtype} requires min_value={min_value}"
+                    f" to be at least {info.min}"
+                )
+            kw["min_value"] = min_value
+
+        if max_value is None:
+            kw["max_value"] = info.max
+        else:
+            if max_value > info.max:
+                raise InvalidArgument(
+                    f"dtype {dtype} requires max_value={max_value}"
+                    f" to be at most {info.max}"
+                )
+            kw["max_value"] = max_value
+
+        return kw
+
     int_dtypes, int_stubs = partition_attributes_and_stubs(
-        xp, ["int8", "int16", "int32", "int64"]
+        xp, ["int8", "int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64"]
     )
-    if dtypes in int_dtypes:
+    if dtype in int_dtypes:
         check_xp_attr(xp, "iinfo")
-        iinfo = xp.iinfo(dtypes)
-
-        return st.integers(min_value=iinfo.min, max_value=iinfo.max)
-
-    uint_dtypes, uint_stubs = partition_attributes_and_stubs(
-        xp, ["uint8", "uint16", "uint32", "uint64"]
-    )
-    if dtypes in uint_dtypes:
-        check_xp_attr(xp, "iinfo")
-        iinfo = xp.iinfo(dtypes)
-
-        return st.integers(min_value=iinfo.min, max_value=iinfo.max)
+        iinfo = xp.iinfo(dtype)
+        kw = minmax_values_kw(iinfo)
+        return st.integers(**kw)
 
     float_dtypes, float_stubs = partition_attributes_and_stubs(
         xp, ["float32", "float64"]
     )
-    if dtypes in float_dtypes:
+    if dtype in float_dtypes:
         check_xp_attr(xp, "finfo")
-        finfo = xp.finfo(dtypes)
+        finfo = xp.finfo(dtype)
 
-        return st.floats(min_value=finfo.min, max_value=finfo.max, width=finfo.bits)
+        kw = minmax_values_kw(finfo)
+        if allow_nan is not None:
+            kw["allow_nan"] = allow_nan
+        if allow_infinity is not None:
+            kw["allow_infinity"] = allow_infinity
+        if exclude_min is not None:
+            kw["exclude_min"] = exclude_min
+        if exclude_max is not None:
+            kw["exclude_max"] = exclude_max
+
+        return st.floats(width=finfo.bits, **kw)
 
     stubs.extend(int_stubs)
-    stubs.extend(uint_stubs)
     stubs.extend(float_stubs)
     if len(stubs) > 0:
         warn_on_missing_dtypes(xp, stubs)
 
-    raise InvalidArgument(f"No strategy inference for {dtypes}")
+    raise InvalidArgument(f"No strategy inference for {dtype}")
 
 
 class ArrayStrategy(st.SearchStrategy):
@@ -296,6 +328,8 @@ def arrays(
 
     if elements is None:
         elements = from_dtype(xp, dtype)
+    elif isinstance(elements, Mapping):
+        elements = from_dtype(xp, dtype, **elements)
 
     if fill is None:
         if unique or not elements.has_reusable_values:

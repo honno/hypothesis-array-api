@@ -255,3 +255,47 @@ def test_may_not_fill_with_non_nan_when_unique_is_set(_):
 def test_may_not_use_overflowing_integers(kwargs, data):
     strat = xpst.arrays(dtype=xp.int8, shape=1, **kwargs)
     data.draw(strat)
+
+
+@mark.parametrize("fill", [False, True])
+@mark.parametrize(
+    "dtype, strat",
+    [
+        (xp.float32, st.floats(min_value=10 ** 40, allow_infinity=False)),
+        (xp.float64, st.floats(min_value=10 ** 40, allow_infinity=False)),
+    ]
+)
+@fails_with(InvalidArgument)
+@given(st.data())
+def test_may_not_use_unrepresentable_elements(fill, dtype, strat, data):
+    if fill:
+        kw = {"elements": st.nothing(), "fill": strat}
+    else:
+        kw = {"elements": strat}
+    strat = xpst.arrays(dtype=dtype, shape=1, **kw)
+    data.draw(strat)
+
+
+@given(
+    xpst.arrays(dtype=xp.float32, shape=10, elements={"min_value": 0, "max_value": 1})
+)
+def test_floats_can_be_constrained_at_low_width(array):
+    assert xp.all(array >= 0)
+    assert xp.all(array <= 1)
+
+
+@given(
+    xpst.arrays(
+        dtype=xp.float32,
+        shape=10,
+        elements={
+            "min_value": 0,
+            "max_value": 1,
+            "exclude_min": True,
+            "exclude_max": True,
+        },
+    )
+)
+def test_floats_can_be_constrained_at_low_width_excluding_endpoints(array):
+    assert xp.all(array > 0)
+    assert xp.all(array < 1)
