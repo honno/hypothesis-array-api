@@ -2,12 +2,13 @@ from math import prod
 
 from hypothesis import given, settings
 from hypothesis import strategies as st
-from hypothesis.errors import Unsatisfiable
+from hypothesis.errors import InvalidArgument, Unsatisfiable
 from pytest import mark, raises
 
 from hypothesis_array import get_strategies_namespace
 
-from .common.debug import minimal
+from .common.debug import find_any, minimal
+from .common.utils import fails_with
 from .xputils import DTYPE_NAMES, create_array_module
 
 xp = create_array_module()
@@ -187,3 +188,70 @@ def test_cannot_generate_unique_array_of_too_many_elements():
     strat = xpst.arrays(xp.int8, 10, elements=st.integers(0, 5), unique=True)
     with raises(Unsatisfiable):
         strat.example()
+
+
+@given(
+    xpst.arrays(
+        dtype=xp.float32,
+        shape=st.integers(0, 20),
+        elements=st.just(0.0),
+        fill=st.just(xp.nan),
+        unique=True,
+    )
+)
+def test_array_values_are_unique_high_collision(array):
+    hits = (array == 0.0)
+    nzeros = 0
+    for i in range(array.size):
+        if hits[i]:
+            nzeros += 1
+    assert nzeros <= 1
+
+
+@given(xpst.arrays(xp.int8, (4,), elements=st.integers(0, 3), unique=True))
+def test_generates_all_values_for_unique_array(array):
+    # xp.unique() is optional for Array API libraries
+    if hasattr(xp, "unique"):
+        unique_values = xp.unique(array)
+        assert unique_values.size == array.size
+
+
+def test_may_fill_with_nan_when_unique_is_set():
+    find_any(
+        xpst.arrays(
+            dtype=xp.float32,
+            shape=10,
+            elements=st.floats(allow_nan=False),
+            unique=True,
+            fill=st.just(xp.nan),
+        ),
+        lambda x: xp.any(xp.isnan(x)),
+    )
+
+
+@fails_with(InvalidArgument)
+@given(
+    xpst.arrays(
+        dtype=xp.float32,
+        shape=10,
+        elements=st.floats(allow_nan=False),
+        unique=True,
+        fill=st.just(0.0),
+    )
+)
+def test_may_not_fill_with_non_nan_when_unique_is_set(_):
+    pass
+
+
+@mark.parametrize(
+    "kwargs",
+    [
+        {"elements": st.just(300)},
+        {"elements": st.nothing(), "fill": st.just(300)},
+    ],
+)
+@fails_with(InvalidArgument)
+@given(st.data())
+def test_may_not_use_overflowing_integers(kwargs, data):
+    strat = xpst.arrays(dtype=xp.int8, shape=1, **kwargs)
+    data.draw(strat)

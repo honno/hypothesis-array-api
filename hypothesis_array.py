@@ -58,7 +58,7 @@ def infer_xp_is_compliant(xp):
         array.__array_namespace__()
     except AttributeError:
         warn(
-            f"Could not determine whether module '{xp.__name__}'"
+            f"Could not determine whether module {xp.__name__}"
             " is an Array API library",
             HypothesisWarning,
         )
@@ -67,14 +67,14 @@ def infer_xp_is_compliant(xp):
 def check_xp_attr(xp, attr: str):
     if not hasattr(xp, attr):
         raise AttributeError(
-            f"Array module '{xp.__name__}' does not have required attribute '{attr}'"
+            f"Array module {xp.__name__} does not have required attribute {attr}"
         )
 
 
 def warn_on_missing_dtypes(xp, stubs: List[str]):
-    f_stubs = ", ".join(f"'{stub}'" for stub in stubs)
+    f_stubs = ", ".join(stubs)
     warn(
-        f"Array module '{xp.__name__}' does not have"
+        f"Array module {xp.__name__} does not have"
         f" the following dtypes in its namespace: {f_stubs}.",
         HypothesisWarning,
     )
@@ -145,7 +145,7 @@ def from_dtype(
         check_xp_attr(xp, "finfo")
         finfo = xp.finfo(dtypes)
 
-        return st.floats(min_value=finfo.min, max_value=finfo.max)
+        return st.floats(min_value=finfo.min, max_value=finfo.max, width=finfo.bits)
 
     stubs.extend(int_stubs)
     stubs.extend(uint_stubs)
@@ -157,18 +157,48 @@ def from_dtype(
 
 
 class ArrayStrategy(st.SearchStrategy):
-    def __init__(self, xp, elements, dtype, shape, fill, unique):
+    def __init__(self, xp, element_strategy, dtype, shape, fill, unique):
         self.xp = xp
-        self.elements = elements
+        self.element_strategy = element_strategy
         self.dtype = dtype
         self.shape = shape
         self.fill = fill
         self.unique = unique
         self.array_size = math.prod(shape)
 
+    def set_element(self, data, result, idx, strategy=None):
+        strategy = strategy or self.element_strategy
+        val = data.draw(strategy)
+
+        try:
+            result[idx] = val
+        except TypeError as e:
+            # TODO check type promotion rules first
+            raise InvalidArgument(
+                f"Could not add generated array element '{repr(val)}'"
+                f"of dtype {type(val)} to array of dtype {result.dtype}."
+            ) from e
+
+        val_array = result[idx]
+        if val == val and self.xp.all(val_array != val):
+            raise InvalidArgument(
+                f"Generated array element '{repr(val)}' from strategy {strategy}"
+                f" cannot be represented as dtype {self.dtype}."
+                f" Array module {self.xp.__name__} instead"
+                f" represents the element as '{result[idx]}'."
+                "Consider using a more precise elements strategy,"
+                " for example passing the width argument to floats()."
+            )
+
+        # TODO explicitly check overflow errors
+
+        return val
+
     def do_draw(self, data):
         if 0 in self.shape:
             return self.xp.empty(self.shape, dtype=self.dtype)
+
+        result = self.xp.empty(self.array_size, dtype=self.dtype)
 
         if self.fill.is_empty:
             if self.unique:
@@ -182,27 +212,23 @@ class ArrayStrategy(st.SearchStrategy):
                 )
                 i = 0
                 while elements.more():
-                    result[i] = data.draw(self.elements)
+                    self.set_element(data, result, i)
                     if result[i] not in seen:
                         seen.add(result[i])
                         i += 1
                     else:
                         elements.reject()
             else:
-                if len(self.shape) == 0:
-                    val = data.draw(self.elements)
-                    return self.xp.asarray(val, dtype=self.dtype)
-                else:
-                    result = self.xp.empty(self.array_size, dtype=self.dtype)
-                    for i in range(self.array_size):
-                        result[i] = data.draw(self.elements)
+                result = self.xp.empty(self.array_size, dtype=self.dtype)
+                for i in range(self.array_size):
+                    self.set_element(data, result, i)
         else:
-            fill_value = data.draw(self.fill)
-            result = self.xp.full(self.array_size, fill_value, dtype=self.dtype)
-
+            fill_value = self.set_element(
+                data, result, slice(None, None), strategy=self.fill
+            )
             if self.unique and not self.xp.all(self.xp.isnan(result)):
                 raise InvalidArgument(
-                    f" Array module '{self.xp.__name__}' did not recognise"
+                    f"Array module {self.xp.__name__} did not recognise"
                     f" fill value '{fill_value}' as NaN."
                     " Cannot fill unique array with non-NaN values."
                 )
@@ -214,26 +240,26 @@ class ArrayStrategy(st.SearchStrategy):
                 average_size=math.sqrt(self.array_size),
             )
 
-            needs_fill = self.xp.full(self.array_size, True, dtype=self.xp.bool)
+            index_set = self.xp.full(self.array_size, False, dtype=self.xp.bool)
             seen = set()
 
             while elements.more():
                 i = cu.integer_range(data, 0, self.array_size - 1)
-                if not needs_fill[i]:
+
+                if index_set[i]:
                     elements.reject()
                     continue
 
-                element_value = data.draw(self.elements)
-                result[i] = element_value
+                self.set_element(data, result, i)
 
                 if self.unique:
-                    if element_value in seen:
+                    if result[i] in seen:
                         elements.reject()
                         continue
                     else:
-                        seen.add(element_value)
+                        seen.add(result[i])
 
-                needs_fill[i] = False
+                index_set[i] = True
 
         result = self.xp.reshape(result, self.shape)
 
@@ -310,9 +336,9 @@ def array_shapes(
 
 def check_dtypes(xp, dtypes: List[Type[DataType]], stubs: List[str]):
     if len(dtypes) == 0:
-        f_stubs = ", ".join(f"'{stub}'" for stub in stubs)
+        f_stubs = ", ".join(stubs)
         raise InvalidArgument(
-            f"Array module '{xp.__name__}' does not have"
+            f"Array module {xp.__name__} does not have"
             f" the following required dtypes in its namespace: {f_stubs}"
         )
     elif len(stubs) > 0:
@@ -343,8 +369,8 @@ def boolean_dtypes(xp) -> st.SearchStrategy[Type[Boolean]]:
         return st.just(xp.bool)
     except AttributeError:
         raise InvalidArgument(
-            f"Array module '{xp.__name__}' does not have"
-            f" a 'bool' dtype in its namespace"
+            f"Array module {xp.__name__} does not have"
+            f" a bool dtype in its namespace"
         ) from None
 
 
