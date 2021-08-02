@@ -21,7 +21,7 @@ from warnings import warn
 from hypothesis import strategies as st
 from hypothesis.errors import HypothesisWarning, InvalidArgument
 from hypothesis.internal.conjecture import utils as cu
-from hypothesis.internal.validation import check_type
+from hypothesis.internal.validation import check_type, check_valid_interval
 
 __all__ = [
     "get_strategies_namespace",
@@ -33,6 +33,7 @@ __all__ = [
     "integer_dtypes",
     "unsigned_integer_dtypes",
     "floating_dtypes",
+    "valid_tuple_axes",
 ]
 
 
@@ -113,12 +114,13 @@ def get_strategies_namespace(xp) -> SimpleNamespace:
     return SimpleNamespace(
         from_dtype=lambda *a, **kw: from_dtype(xp, *a, **kw),
         arrays=lambda *a, **kw: arrays(xp, *a, **kw),
-        array_shapes=lambda *a, **kw: array_shapes(*a, **kw),
+        array_shapes=array_shapes,
         scalar_dtypes=lambda *a, **kw: scalar_dtypes(xp, *a, **kw),
         boolean_dtypes=lambda *a, **kw: boolean_dtypes(xp, *a, **kw),
         integer_dtypes=lambda *a, **kw: integer_dtypes(xp, *a, **kw),
         unsigned_integer_dtypes=lambda *a, **kw: unsigned_integer_dtypes(xp, *a, **kw),
         floating_dtypes=lambda *a, **kw: floating_dtypes(xp, *a, **kw),
+        valid_tuple_axes=valid_tuple_axes,
     )
 
 
@@ -362,12 +364,15 @@ def array_shapes(
 ) -> st.SearchStrategy[Shape]:
     check_type(int, min_dims, "min_dims")
     check_type(int, min_side, "min_side")
+
     if max_dims is None:
         max_dims = min_dims + 2
     check_type(int, max_dims, "max_dims")
+
     if max_side is None:
         max_side = min_side + 5
     check_type(int, max_side, "max_side")
+
     order_check("dims", 0, min_dims, max_dims)
     order_check("side", 0, min_side, max_side)
 
@@ -490,3 +495,27 @@ def floating_dtypes(
     check_dtypes(xp, dtypes, stubs)
 
     return st.sampled_from(dtypes)
+
+
+def valid_tuple_axes(
+    ndim: int,
+    *,
+    min_size: int = 0,
+    max_size: Optional[int] = None,
+) -> st.SearchStrategy[Shape]:
+    if max_size is None:
+        max_size = ndim
+
+    check_type(int, ndim, "ndim")
+    check_type(int, min_size, "min_size")
+    check_type(int, max_size, "max_size")
+    order_check("size", 0, min_size, max_size)
+    check_valid_interval(max_size, ndim, "max_size", "ndim")
+
+    axes = st.integers(0, max(0, 2 * ndim - 1)).map(
+        lambda x: x if x < ndim else x - 2 * ndim
+    )
+
+    return st.lists(
+        axes, min_size=min_size, max_size=max_size, unique_by=lambda x: x % ndim
+    ).map(tuple)

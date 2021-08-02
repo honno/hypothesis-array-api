@@ -79,13 +79,14 @@ def test_can_generate_array_shapes(shape):
 @settings(deadline=None, max_examples=10)
 @given(st.integers(0, 10), st.integers(0, 9), st.integers(0), st.integers(0))
 def test_minimise_array_shapes(min_dims, dim_range, min_side, side_range):
-    strat = xpst.array_shapes(
-        min_dims=min_dims,
-        max_dims=min_dims + dim_range,
-        min_side=min_side,
-        max_side=min_side + side_range,
+    smallest = minimal(
+        xpst.array_shapes(
+            min_dims=min_dims,
+            max_dims=min_dims + dim_range,
+            min_side=min_side,
+            max_side=min_side + side_range,
+        )
     )
-    smallest = minimal(strat)
     assert len(smallest) == min_dims and all(k == min_side for k in smallest)
 
 
@@ -313,3 +314,58 @@ def test_floats_can_be_constrained_at_low_width(array):
 def test_floats_can_be_constrained_at_low_width_excluding_endpoints(array):
     assert xp.all(array > 0)
     assert xp.all(array < 1)
+
+
+@given(xpst.valid_tuple_axes(3))
+def test_can_generate_valid_tuple_axes(axis):
+    assert isinstance(axis, tuple)
+    assert all(isinstance(i, int) for i in axis)
+
+
+@given(ndim=st.integers(0, 5), data=st.data())
+def test_mapped_positive_axes_are_unique(ndim, data):
+    min_size = data.draw(st.integers(0, ndim), label="min_size")
+    max_size = data.draw(st.integers(min_size, ndim), label="max_size")
+    axes = data.draw(
+        xpst.valid_tuple_axes(ndim, min_size=min_size, max_size=max_size), label="axes"
+    )
+    assert len(set(axes)) == len({i if 0 < i else ndim + i for i in axes})
+
+
+@given(ndim=st.integers(0, 5), data=st.data())
+def test_length_bounds_are_satisfied(ndim, data):
+    min_size = data.draw(st.integers(0, ndim), label="min_size")
+    max_size = data.draw(st.integers(min_size, ndim), label="max_size")
+    axes = data.draw(
+        xpst.valid_tuple_axes(ndim, min_size=min_size, max_size=max_size), label="axes"
+    )
+    assert min_size <= len(axes) <= max_size
+
+
+@given(shape=xpst.array_shapes(), data=st.data())
+def test_axes_are_valid_inputs_to_sum(shape, data):
+    array = xp.zeros(shape, dtype="uint8")
+    axes = data.draw(xpst.valid_tuple_axes(ndim=len(shape)), label="axes")
+    xp.sum(array, axes)
+
+
+@settings(deadline=None, max_examples=10)
+@given(ndim=st.integers(0, 3), data=st.data())
+def test_minimize_tuple_axes(ndim, data):
+    min_size = data.draw(st.integers(0, ndim), label="min_size")
+    max_size = data.draw(st.integers(min_size, ndim), label="max_size")
+    smallest = minimal(xpst.valid_tuple_axes(
+        ndim, min_size=min_size, max_size=max_size))
+    assert len(smallest) == min_size and all(k > -1 for k in smallest)
+
+
+@settings(deadline=None, max_examples=10)
+@given(ndim=st.integers(0, 3), data=st.data())
+def test_minimize_negative_tuple_axes(ndim, data):
+    min_size = data.draw(st.integers(0, ndim), label="min_size")
+    max_size = data.draw(st.integers(min_size, ndim), label="max_size")
+    smallest = minimal(
+        xpst.valid_tuple_axes(ndim, min_size=min_size, max_size=max_size),
+        lambda x: all(i < 0 for i in x),
+    )
+    assert len(smallest) == min_size

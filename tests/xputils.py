@@ -43,6 +43,7 @@ METHODS_MAP = {
     "all": np.all,
     "nonzero": np.nonzero,
     "unique": np.unique,
+    "sum": np.sum,
     "isnan": np.isnan,
     "logical_or": np.logical_or,
 }
