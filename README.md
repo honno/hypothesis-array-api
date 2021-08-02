@@ -40,7 +40,7 @@ with input from
 and other great folk from
 [@Quansight-Labs](https://github.com/Quansight-Labs).
 
-Additionaly inspiration was taken from the
+Great inspiration was taken from the
 [NumPy strategies](https://hypothesis.readthedocs.io/en/latest/numpy.html#numpy)
 that Hypothesis ships with at `hypothesis.extra.numpy`.
 Thanks to the Hypothesis contributors who helped shape it, including:
@@ -56,3 +56,14 @@ Thanks to the Hypothesis contributors who helped shape it, including:
 [@jdufresne](https://github.com/jdufresne),
 [@gsnsw-felixs](https://github.com/gsnsw-felixs) and
 [@alexwlchan](https://github.com/alexwlchan).
+
+
+## License
+
+Most files are licensed under [`MPL`](./MPL.txt)
+and are denoted as such in their header,
+copyright to David R. MacIver and other contributors.
+I have made modifications and additions to all these files,
+excluding those in `tests/common/` which remain unchanged.
+Everything else is licensed under [`MIT`](./MIT.txt),
+copyright to Matthew Barber.

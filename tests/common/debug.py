@@ -1,25 +1,20 @@
-# This file is part of Hypothesis, which may be found at
+# This file was part of Hypothesis, which may be found at
 # https://github.com/HypothesisWorks/hypothesis/
 #
 # Most of this work is copyright (C) 2013-2021 David R. MacIver
 # (david@drmaciver.com), but it contains contributions by others. See
-# CONTRIBUTING.rst for a full list of people who may hold copyright, and
-# consult the git log if you need to determine who owns an individual
-# contribution.
+# ./CONTRIBUTING.rst for a full list of people who may hold copyright,
+# and consult the git log of ./hypothesis-python/tests/common/debug.py
+# if you need to determine who owns an individual contribution.
+# ('.' represents the root of the Hypothesis git repository)
 #
 # This Source Code Form is subject to the terms of the Mozilla Public License,
 # v. 2.0. If a copy of the MPL was not distributed with this file, You can
 # obtain one at https://mozilla.org/MPL/2.0/.
-#
-# END HEADER
 
-from hypothesis import (
-    HealthCheck,
-    Verbosity,
-    given,
-    settings as Settings,
-    strategies as st,
-)
+from hypothesis import HealthCheck, Verbosity, given
+from hypothesis import settings as Settings
+from hypothesis import strategies as st
 from hypothesis.errors import Found, NoSuchExample, Unsatisfiable
 from hypothesis.internal.conjecture.data import ConjectureData, StopTest
 from hypothesis.internal.reflection import get_pretty_function_description

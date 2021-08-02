@@ -1,44 +1,25 @@
-# This file is part of Hypothesis, which may be found at
+# This file was part of Hypothesis, which may be found at
 # https://github.com/HypothesisWorks/hypothesis/
 #
 # Most of this work is copyright (C) 2013-2021 David R. MacIver
 # (david@drmaciver.com), but it contains contributions by others. See
-# CONTRIBUTING.rst for a full list of people who may hold copyright, and
-# consult the git log if you need to determine who owns an individual
-# contribution.
+# ./CONTRIBUTING.rst for a full list of people who may hold copyright,
+# and consult the git log of ./hypothesis-python/tests/common/__init__.py
+# if you need to determine who owns an individual contribution.
+# ('.' represents the root of the Hypothesis git repository)
 #
 # This Source Code Form is subject to the terms of the Mozilla Public License,
 # v. 2.0. If a copy of the MPL was not distributed with this file, You can
 # obtain one at https://mozilla.org/MPL/2.0/.
-#
-# END HEADER
 
 import sys
 from collections import namedtuple
 
-from hypothesis.strategies import (
-    binary,
-    booleans,
-    builds,
-    complex_numbers,
-    decimals,
-    dictionaries,
-    fixed_dictionaries,
-    floats,
-    fractions,
-    frozensets,
-    integers,
-    just,
-    lists,
-    none,
-    one_of,
-    randoms,
-    recursive,
-    sampled_from,
-    sets,
-    text,
-    tuples,
-)
+from hypothesis.strategies import (binary, booleans, builds, complex_numbers,
+                                   decimals, dictionaries, fixed_dictionaries,
+                                   floats, fractions, frozensets, integers,
+                                   just, lists, none, one_of, randoms,
+                                   recursive, sampled_from, sets, text, tuples)
 
 from tests.common.debug import TIME_INCREMENT
 
