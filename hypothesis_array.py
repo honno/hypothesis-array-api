@@ -217,8 +217,7 @@ class ArrayStrategy(st.SearchStrategy):
                 f"of dtype {type(val)} to array of dtype {result.dtype}."
             ) from e
 
-        val_array = result[idx]
-        if val == val and self.xp.all(val_array != val):
+        if val == val and self.xp.all(result[idx] != val):
             raise InvalidArgument(
                 f"Generated array element '{repr(val)}' from strategy {strategy}"
                 f" cannot be represented as dtype {self.dtype}."
@@ -229,8 +228,6 @@ class ArrayStrategy(st.SearchStrategy):
             )
 
         # TODO explicitly check overflow errors
-
-        return val
 
     def do_draw(self, data):
         if 0 in self.shape:
@@ -261,13 +258,13 @@ class ArrayStrategy(st.SearchStrategy):
                 for i in range(self.array_size):
                     self.set_element(data, result, i)
         else:
-            fill_value = self.set_element(
+            self.set_element(
                 data, result, slice(None, None), strategy=self.fill
             )
             if self.unique and not self.xp.all(self.xp.isnan(result)):
                 raise InvalidArgument(
                     f"Array module {self.xp.__name__} did not recognise"
-                    f" fill value '{fill_value}' as NaN."
+                    f" fill value as NaN - instead got '{repr(result[0])}'."
                     " Cannot fill unique array with non-NaN values."
                 )
 
