@@ -64,10 +64,16 @@ def infer_xp_is_compliant(xp):
         )
 
 
-def check_xp_attr(xp, attr: str):
-    if not hasattr(xp, attr):
+def check_xp_attributes(xp, attributes: List[str]):
+    missing_attrs = []
+    for attr in attributes:
+        if not hasattr(xp, attr):
+            missing_attrs.append(attr)
+
+    if len(missing_attrs) > 0:
+        f_attrs = ", ".join(missing_attrs)
         raise AttributeError(
-            f"Array module {xp.__name__} does not have required attribute {attr}"
+            f"Array module {xp.__name__} does not have required attributes: {f_attrs}"
         )
 
 
@@ -156,7 +162,7 @@ def from_dtype(
         xp, ["int8", "int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64"]
     )
     if dtype in int_dtypes:
-        check_xp_attr(xp, "iinfo")
+        check_xp_attributes(xp, ["iinfo"])
         iinfo = xp.iinfo(dtype)
         kw = minmax_values_kw(iinfo)
         return st.integers(**kw)
@@ -165,7 +171,7 @@ def from_dtype(
         xp, ["float32", "float64"]
     )
     if dtype in float_dtypes:
-        check_xp_attr(xp, "finfo")
+        check_xp_attributes(xp, ["finfo"])
         finfo = xp.finfo(dtype)
 
         kw = minmax_values_kw(finfo)
@@ -307,12 +313,8 @@ def arrays(
     fill: Optional[st.SearchStrategy[Any]] = None,
     unique: bool = False,
 ) -> st.SearchStrategy[Array]:
-    # TODO do these only once... maybe have _arrays() which is used recursively instead
     infer_xp_is_compliant(xp)
-    check_xp_attr(xp, "empty")
-    check_xp_attr(xp, "full")
-    check_xp_attr(xp, "reshape")
-    # TODO check type promotion works
+    check_xp_attributes(xp, ["empty", "full", "all", "isnan", "bool", "reshape"])
 
     if isinstance(dtype, st.SearchStrategy):
         return dtype.flatmap(
