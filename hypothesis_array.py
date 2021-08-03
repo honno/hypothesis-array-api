@@ -42,9 +42,8 @@ SignedInteger = TypeVar("SignedInteger")
 UnsignedInteger = TypeVar("UnsignedInteger")
 Float = TypeVar("Float")
 DataType = Union[Boolean, SignedInteger, UnsignedInteger, Float]
-Array = TypeVar("Array")  # TODO make this a generic or something
+Array = TypeVar("Array")
 Shape = Tuple[int, ...]
-T = TypeVar("T")
 
 DTYPE_NAMES = [
     "bool",
