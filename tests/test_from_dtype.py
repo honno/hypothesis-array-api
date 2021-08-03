@@ -45,11 +45,22 @@ def builtin_from_dtype_name(name: str) -> Type[Union[bool, int, float]]:
 
 
 @mark.parametrize("name", DTYPE_NAMES["all"])
-def test_produces_instances(name):
+def test_produces_instances_from_dtype(name):
     builtin = builtin_from_dtype_name(name)
     dtype = getattr(xp, name)
 
     @given(xpst.from_dtype(dtype))
+    def test_is_builtin(value):
+        assert isinstance(value, builtin)
+
+    test_is_builtin()
+
+
+@mark.parametrize("name", DTYPE_NAMES["all"])
+def test_produces_instances_from_name(name):
+    builtin = builtin_from_dtype_name(name)
+
+    @given(xpst.from_dtype(name))
     def test_is_builtin(value):
         assert isinstance(value, builtin)
 

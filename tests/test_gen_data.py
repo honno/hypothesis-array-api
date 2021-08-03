@@ -106,6 +106,13 @@ def test_can_generate_arrays_from_scalars(data):
     # TODO check array.__array_namespace__()
 
 
+@given(st.sampled_from(DTYPE_NAMES["all"]), st.data())
+def test_can_generate_arrays_from_scalar_names(name, data):
+    array = data.draw(xpst.arrays(name, ()))
+    assert array.dtype == getattr(xp, name)
+    # TODO check array.__array_namespace__()
+
+
 @given(st.data())
 def test_can_generate_arrays_from_shapes(data):
     shape = data.draw(xpst.array_shapes())
@@ -127,6 +134,14 @@ def test_can_draw_arrays_from_scalar_strategies(data):
         xpst.floating_dtypes(),
     ]))
     array = data.draw(xpst.arrays(strat, ()))  # noqa
+    # TODO check array.__array_namespace__()
+
+
+@given(
+    st.lists(st.sampled_from(DTYPE_NAMES["all"]), min_size=1, unique=True), st.data()
+)
+def test_can_draw_arrays_from_scalar_name_strategies(names, data):
+    array = data.draw(xpst.arrays(st.sampled_from(names), ()))  # noqa
     # TODO check array.__array_namespace__()
 
 

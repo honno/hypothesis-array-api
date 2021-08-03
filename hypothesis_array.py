@@ -46,6 +46,13 @@ Array = TypeVar("Array")  # TODO make this a generic or something
 Shape = Tuple[int, ...]
 T = TypeVar("T")
 
+DTYPE_NAMES = [
+    "bool",
+    "int8", "int16", "int32", "int64",
+    "uint8", "uint16", "uint32", "uint64",
+    "float32", "float64",
+]
+
 
 def partition_attributes_and_stubs(
     xp,
@@ -124,7 +131,7 @@ def get_strategies_namespace(xp) -> SimpleNamespace:
 
 def from_dtype(
     xp,
-    dtype: DataType,
+    dtype: Union[Type[DataType], str],
     *,
     min_value: Optional[Union[int, float]] = None,
     max_value: Optional[Union[int, float]] = None,
@@ -134,6 +141,23 @@ def from_dtype(
     exclude_max: Optional[bool] = None,
 ) -> st.SearchStrategy[Union[bool, int, float]]:
     infer_xp_is_compliant(xp)
+
+    if isinstance(dtype, str):
+        if dtype in DTYPE_NAMES:
+            try:
+                dtype = getattr(xp, dtype)
+                return from_dtype(xp, dtype)
+            except AttributeError as e:
+                raise InvalidArgument(
+                    f"Array module {xp.__name__} does not have"
+                    f" dtype {dtype} in its namespace"
+                ) from e
+        else:
+            f_valid_dtypes = ", ".join(DTYPE_NAMES)
+            raise InvalidArgument(
+                f"{dtype} is not a valid Array API data type"
+                f" (pick from: {f_valid_dtypes})"
+            )
 
     stubs = []
 
@@ -314,7 +338,9 @@ class ArrayStrategy(st.SearchStrategy):
 
 def arrays(
     xp,
-    dtype: Union[DataType, st.SearchStrategy[DataType]],
+    dtype: Union[
+        Type[DataType], str, st.SearchStrategy[Type[DataType]], st.SearchStrategy[str]
+    ],
     shape: Union[int, Shape, st.SearchStrategy[Shape]],
     *,
     elements: Optional[st.SearchStrategy] = None,
@@ -395,15 +421,7 @@ def check_dtypes(xp, dtypes: List[Type[DataType]], stubs: List[str]):
 def scalar_dtypes(xp) -> st.SearchStrategy[Type[DataType]]:
     infer_xp_is_compliant(xp)
 
-    dtypes, stubs = partition_attributes_and_stubs(
-        xp,
-        [
-            "bool",
-            "int8", "int16", "int32", "int64",
-            "uint8", "uint16", "uint32", "uint64",
-            "float32", "float64",
-        ],
-    )
+    dtypes, stubs = partition_attributes_and_stubs(xp, DTYPE_NAMES)
     check_dtypes(xp, dtypes, stubs)
 
     return st.sampled_from(dtypes)
