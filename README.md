@@ -1,5 +1,8 @@
 # Hypothesis strategies for Array API libraries
 
+**Note:** `hypothesis-array-api` uses private APIs from Hypothesis
+and so should be considered unstable.
+
 ## Install
 
 You can get the strategies from PyPI.
@@ -18,7 +21,7 @@ where you can use `pytest` to run the full test suite
 ## Quickstart
 
 ```python
-from numpy import _array_api as xp
+from numpy import array_api as xp
 
 from hypothesis import given
 from hypothesis_array import get_strategies_namespace
