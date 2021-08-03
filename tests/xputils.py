@@ -8,7 +8,7 @@ from typing import Any, Tuple
 
 import numpy as np
 
-# TODO use numpy._array_api when the Array API support PR goes through:
+# TODO use numpy.array_api when the Array API support PR goes through:
 #      github.com/numpy/numpy/pull/18585
 
 
