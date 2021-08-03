@@ -124,6 +124,16 @@ def test_can_generate_arrays_from_shapes(data):
     # TODO check array.__array_namespace__()
 
 
+@given(st.integers(0, 10), st.data())
+def test_can_generate_arrays_from_int_shapes(size, data):
+    array = data.draw(xpst.arrays(xp.bool, size))
+
+    assert array.ndim == 1
+    assert array.shape == (size,)
+    assert array.size == size
+    # TODO check array.__array_namespace__()
+
+
 @given(st.data())
 def test_can_draw_arrays_from_scalar_strategies(data):
     strat = data.draw(st.sampled_from([
