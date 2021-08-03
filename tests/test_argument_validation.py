@@ -15,12 +15,12 @@
 from hypothesis.errors import InvalidArgument
 from pytest import mark, param, raises
 
-import hypothesis_array as _xpst
+from hypothesis_array import get_strategies_namespace
 
 from .xputils import create_array_module
 
 xp = create_array_module()
-xpst = _xpst.get_strategies_namespace(xp)
+xpst = get_strategies_namespace(xp)
 
 
 def e(a, **kwargs):
