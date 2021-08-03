@@ -14,8 +14,8 @@
 
 import math
 from types import SimpleNamespace
-from typing import (Any, Iterable, List, Mapping, NamedTuple, Optional,
-                    Sequence, Tuple, Type, TypeVar, Union)
+from typing import (Any, Iterable, List, Mapping, Optional, Sequence, Tuple,
+                    Type, TypeVar, Union)
 from warnings import warn
 
 from hypothesis import strategies as st
@@ -45,11 +45,6 @@ DataType = Union[Boolean, SignedInteger, UnsignedInteger, Float]
 Array = TypeVar("Array")  # TODO make this a generic or something
 Shape = Tuple[int, ...]
 T = TypeVar("T")
-
-
-class BroadcastableShapes(NamedTuple):
-    input_shapes: Tuple[Shape, ...]
-    result_shape: Shape
 
 
 def partition_attributes_and_stubs(
@@ -253,7 +248,6 @@ class ArrayStrategy(st.SearchStrategy):
 
         if self.fill.is_empty:
             if self.unique:
-                result = self.xp.empty(self.array_size, dtype=self.dtype)
                 seen = set()
                 elements = cu.many(
                     data,
@@ -270,10 +264,11 @@ class ArrayStrategy(st.SearchStrategy):
                     else:
                         elements.reject()
             else:
-                result = self.xp.empty(self.array_size, dtype=self.dtype)
                 for i in range(self.array_size):
                     self.set_element(data, result, i)
         else:
+            # TODO use xp.full() instead for optimisation(?)
+            #      and put set_element() checks into a seperate method
             self.set_element(
                 data, result, slice(None, None), strategy=self.fill
             )
