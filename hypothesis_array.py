@@ -37,6 +37,7 @@ __all__ = [
     "floating_dtypes",
     "valid_tuple_axes",
     "broadcastable_shapes",
+    "mutually_broadcastable_shapes",
 ]
 
 
@@ -133,6 +134,7 @@ def get_strategies_namespace(xp) -> SimpleNamespace:
         floating_dtypes=lambda *a, **kw: floating_dtypes(xp, *a, **kw),
         valid_tuple_axes=valid_tuple_axes,
         broadcastable_shapes=broadcastable_shapes,
+        mutually_broadcastable_shapes=mutually_broadcastable_shapes,
     )
 
 
@@ -553,81 +555,10 @@ def valid_tuple_axes(
     ).map(tuple)
 
 
-def broadcastable_shapes(
-    shape: Shape,
-    *,
-    min_dims: int = 0,
-    max_dims: Optional[int] = None,
-    min_side: int = 1,
-    max_side: Optional[int] = None,
-) -> st.SearchStrategy[Shape]:
-    """hello world"""
-    check_type(tuple, shape, "shape")
-    strict_check = max_side is None or max_dims is None
-    check_type(int, min_side, "min_side")
-    check_type(int, min_dims, "min_dims")
-
-    if max_dims is None:
-        max_dims = min(32, max(len(shape), min_dims) + 2)
-    else:
-        check_type(int, max_dims, "max_dims")
-
-    if max_side is None:
-        max_side = max(tuple(shape[-max_dims:]) + (min_side,)) + 2
-    else:
-        check_type(int, max_side, "max_side")
-
-    order_check("dims", 0, min_dims, max_dims)
-    order_check("side", 0, min_side, max_side)
-
-    if 32 < max_dims:
-        raise InvalidArgument("max_dims cannot exceed 32")
-
-    dims, bnd_name = (max_dims, "max_dims") if strict_check else (min_dims, "min_dims")
-
-    # check for unsatisfiable min_side
-    if not all(min_side <= s for s in shape[::-1][:dims] if s != 1):
-        raise InvalidArgument(
-            "Given shape=%r, there are no broadcast-compatible "
-            "shapes that satisfy: %s=%s and min_side=%s"
-            % (shape, bnd_name, dims, min_side)
-        )
-
-    # check for unsatisfiable [min_side, max_side]
-    if not (
-        min_side <= 1 <= max_side or all(s <= max_side for s in shape[::-1][:dims])
-    ):
-        raise InvalidArgument(
-            "Given shape=%r, there are no broadcast-compatible shapes "
-            "that satisfy: %s=%s and [min_side=%s, max_side=%s]"
-            % (shape, bnd_name, dims, min_side, max_side)
-        )
-
-    if not strict_check:
-        # reduce max_dims to exclude unsatisfiable dimensions
-        for n, s in zip(range(max_dims), reversed(shape)):
-            if s < min_side and s != 1:
-                max_dims = n
-                break
-            elif not (min_side <= 1 <= max_side or s <= max_side):
-                max_dims = n
-                break
-
-    return MutuallyBroadcastableShapesStrategy(
-        num_shapes=1,
-        base_shape=shape,
-        min_dims=min_dims,
-        max_dims=max_dims,
-        min_side=min_side,
-        max_side=max_side,
-    ).map(lambda x: x.input_shapes[0])
-
-
 class MutuallyBroadcastableShapesStrategy(st.SearchStrategy):
     def __init__(
         self,
         num_shapes,
-        signature=None,
         base_shape=(),
         min_dims=0,
         max_dims=None,
@@ -636,75 +567,23 @@ class MutuallyBroadcastableShapesStrategy(st.SearchStrategy):
     ):
         assert 0 <= min_side <= max_side
         assert 0 <= min_dims <= max_dims <= 32
-        st.SearchStrategy.__init__(self)
+
         self.base_shape = base_shape
-        self.side_strat = st.integers(min_side, max_side)
         self.num_shapes = num_shapes
-        self.signature = signature
         self.min_dims = min_dims
         self.max_dims = max_dims
         self.min_side = min_side
         self.max_side = max_side
 
+        self.side_strat = st.integers(min_side, max_side)
         self.size_one_allowed = self.min_side <= 1 <= self.max_side
 
     def do_draw(self, data):
-        # We don't usually have a gufunc signature; do the common case first & fast.
-        if self.signature is None:
-            return self._draw_loop_dimensions(data)
-
-        # When we *do*, draw the core dims, then draw loop dims, and finally combine.
-        core_in, core_res = self._draw_core_dimensions(data)
-
-        # If some core shape has omitted optional dimensions, it's an error to add
-        # loop dimensions to it.  We never omit core dims if min_dims >= 1.
-        # This ensures that we respect Numpy's gufunc broadcasting semantics and user
-        # constraints without needing to check whether the loop dims will be
-        # interpreted as an invalid substitute for the omitted core dims.
-        # We may implement this check later!
-        use = [None not in shp for shp in core_in]
-        loop_in, loop_res = self._draw_loop_dimensions(data, use=use)
-
-        def add_shape(loop, core):
-            return tuple(x for x in (loop + core)[-32:] if x is not None)
-
-        return BroadcastableShapes(
-            input_shapes=tuple(add_shape(l_in, c) for l_in, c in zip(loop_in, core_in)),
-            result_shape=add_shape(loop_res, core_res),
-        )
-
-    def _draw_core_dimensions(self, data):
-        # Draw gufunc core dimensions, with None standing for optional dimensions
-        # that will not be present in the final shape.  We track omitted dims so
-        # that we can do an accurate per-shape length cap.
-        dims = {}
-        shapes = []
-        for shape in self.signature.input_shapes + (self.signature.result_shape,):
-            shapes.append([])
-            for name in shape:
-                if name.isdigit():
-                    shapes[-1].append(int(name))
-                    continue
-                if name not in dims:
-                    dim = name.strip("?")
-                    dims[dim] = data.draw(self.side_strat)
-                    if self.min_dims == 0 and not data.draw_bits(3):
-                        dims[dim + "?"] = None
-                    else:
-                        dims[dim + "?"] = dims[dim]
-                shapes[-1].append(dims[name])
-        return tuple(tuple(s) for s in shapes[:-1]), tuple(shapes[-1])
-
-    def _draw_loop_dimensions(self, data, use=None):
         # All shapes are handled in column-major order; i.e. they are reversed
         base_shape = self.base_shape[::-1]
         result_shape = list(base_shape)
         shapes = [[] for _ in range(self.num_shapes)]
-        if use is None:
-            use = [True for _ in range(self.num_shapes)]
-        else:
-            assert len(use) == self.num_shapes
-            assert all(isinstance(x, bool) for x in use)
+        use = [True for _ in range(self.num_shapes)]
 
         for dim_count in range(1, self.max_dims + 1):
             dim = dim_count - 1
@@ -762,3 +641,149 @@ class MutuallyBroadcastableShapesStrategy(st.SearchStrategy):
             input_shapes=tuple(tuple(reversed(shape)) for shape in shapes),
             result_shape=tuple(reversed(result_shape)),
         )
+
+
+def broadcastable_shapes(
+    shape: Shape,
+    *,
+    min_dims: int = 0,
+    max_dims: Optional[int] = None,
+    min_side: int = 1,
+    max_side: Optional[int] = None,
+) -> st.SearchStrategy[Shape]:
+    """hello world"""
+    check_type(tuple, shape, "shape")
+    strict_check = max_side is None or max_dims is None
+    check_type(int, min_side, "min_side")
+    check_type(int, min_dims, "min_dims")
+
+    if max_dims is None:
+        max_dims = min(32, max(len(shape), min_dims) + 2)
+    else:
+        check_type(int, max_dims, "max_dims")
+
+    if max_side is None:
+        max_side = max(tuple(shape[-max_dims:]) + (min_side,)) + 2
+    else:
+        check_type(int, max_side, "max_side")
+
+    order_check("dims", 0, min_dims, max_dims)
+    order_check("side", 0, min_side, max_side)
+
+    if 32 < max_dims:
+        raise InvalidArgument("max_dims cannot exceed 32")
+
+    dims, bound_name = (max_dims, "max_dims") if strict_check else (
+        min_dims, "min_dims")
+
+    # check for unsatisfiable min_side
+    if not all(min_side <= s for s in shape[::-1][:dims] if s != 1):
+        raise InvalidArgument(
+            "Given shape=%r, there are no broadcast-compatible "
+            "shapes that satisfy: %s=%s and min_side=%s"
+            % (shape, bound_name, dims, min_side)
+        )
+
+    # check for unsatisfiable [min_side, max_side]
+    if not (
+        min_side <= 1 <= max_side or all(s <= max_side for s in shape[::-1][:dims])
+    ):
+        raise InvalidArgument(
+            "Given shape=%r, there are no broadcast-compatible shapes "
+            "that satisfy: %s=%s and [min_side=%s, max_side=%s]"
+            % (shape, bound_name, dims, min_side, max_side)
+        )
+
+    if not strict_check:
+        # reduce max_dims to exclude unsatisfiable dimensions
+        for n, s in zip(range(max_dims), reversed(shape)):
+            if s < min_side and s != 1:
+                max_dims = n
+                break
+            elif not (min_side <= 1 <= max_side or s <= max_side):
+                max_dims = n
+                break
+
+    return MutuallyBroadcastableShapesStrategy(
+        num_shapes=1,
+        base_shape=shape,
+        min_dims=min_dims,
+        max_dims=max_dims,
+        min_side=min_side,
+        max_side=max_side,
+    ).map(lambda x: x.input_shapes[0])
+
+
+def mutually_broadcastable_shapes(
+    num_shapes: int,
+    *,
+    base_shape: Shape = (),
+    min_dims: int = 0,
+    max_dims: Optional[int] = None,
+    min_side: int = 1,
+    max_side: Optional[int] = None,
+) -> st.SearchStrategy[BroadcastableShapes]:
+    """hello world"""
+    check_type(int, num_shapes, "num_shapes")
+    if num_shapes < 1:
+        raise InvalidArgument(f"num_shapes={num_shapes} must be at least 1")
+
+    check_type(tuple, base_shape, "base_shape")
+    check_type(int, min_side, "min_side")
+    check_type(int, min_dims, "min_dims")
+
+    strict_check = max_dims is not None
+
+    if max_dims is None:
+        max_dims = min(32, max(len(base_shape), min_dims) + 2)
+    check_type(int, max_dims, "max_dims")
+
+    if max_side is None:
+        max_side = max(base_shape[-max_dims:] + (min_side,)) + 2
+    check_type(int, max_side, "max_side")
+
+    order_check("dims", 0, min_dims, max_dims)
+    order_check("side", 0, min_side, max_side)
+
+    if strict_check:
+        dims = max_dims
+        bound_name = "max_dims"
+    else:
+        dims = min_dims
+        bound_name = "min_dims"
+
+    # check for unsatisfiable min_side
+    if not all(min_side <= s for s in base_shape[::-1][:dims] if s != 1):
+        raise InvalidArgument(
+            f"Given base_shape={base_shape}, there are no broadcast-compatible"
+            f" shapes that satisfy: {bound_name}={dims} and min_side={min_side}"
+        )
+
+    # check for unsatisfiable [min_side, max_side]
+    if not (
+        min_side <= 1 <= max_side or all(s <= max_side for s in base_shape[::-1][:dims])
+    ):
+        raise InvalidArgument(
+            f"Given base_shape={base_shape}, there are no broadcast-compatible"
+            f" shapes that satisfy all of {bound_name}={dims},"
+            f" min_side={min_side}, and max_side={max_side}"
+        )
+
+    if not strict_check:
+        # reduce max_dims to exclude unsatisfiable dimensions
+        for n, s in zip(range(max_dims), base_shape[::-1]):
+            if s < min_side and s != 1:
+                max_dims = n
+                break
+            elif not (min_side <= 1 <= max_side or s <= max_side):
+                max_dims = n
+                break
+
+    return MutuallyBroadcastableShapesStrategy(
+        num_shapes=num_shapes,
+        base_shape=base_shape,
+        min_dims=min_dims,
+        max_dims=max_dims,
+        min_side=min_side,
+        max_side=max_side,
+    )
