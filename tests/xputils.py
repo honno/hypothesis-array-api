@@ -45,6 +45,7 @@ METHODS_MAP = {
     "unique": np.unique,
     "sum": np.sum,
     "isnan": np.isnan,
+    "broadcast_arrays": np.broadcast_arrays,
     "logical_or": np.logical_or,
 }
 
