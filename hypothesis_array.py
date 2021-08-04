@@ -12,7 +12,11 @@
 # v. 2.0. If a copy of the MPL was not distributed with this file, You can
 # obtain one at https://mozilla.org/MPL/2.0/.
 
-"hello world"
+"""Note this reference page is very much WIP.
+See `Hypothesis for the scientific stack
+<https://hypothesis.readthedocs.io/en/latest/numpy.html#numpy>`_
+for a general idea on what we're doing here.
+"""
 
 import math
 from types import SimpleNamespace
@@ -120,7 +124,8 @@ def order_check(name, floor, min_, max_):
 
 
 def get_strategies_namespace(xp) -> SimpleNamespace:
-    """hello world"""
+    """Creates a strategies namespace."""
+    # TODO: ellaborate, example
     infer_xp_is_compliant(xp)
 
     return SimpleNamespace(
@@ -152,7 +157,10 @@ def from_dtype(
     exclude_min: Optional[bool] = None,
     exclude_max: Optional[bool] = None,
 ) -> st.SearchStrategy[Union[bool, int, float]]:
-    """hello world"""
+    """Creates a strategy which can generate any castable value of the given
+    Array API dtype."""
+    # TODO: - ellaborate on what "any castable value" means
+    #       - explain **kwargs behaviour
     infer_xp_is_compliant(xp)
 
     if isinstance(dtype, str):
@@ -360,7 +368,8 @@ def arrays(
     fill: Optional[st.SearchStrategy[Any]] = None,
     unique: bool = False,
 ) -> st.SearchStrategy[Array]:
-    """hello world"""
+    """Returns a strategy for generating Array API arrays."""
+
     infer_xp_is_compliant(xp)
     check_xp_attributes(xp, ["empty", "full", "all", "isnan", "bool", "reshape"])
 
@@ -397,7 +406,7 @@ def array_shapes(
     min_side: int = 1,
     max_side: Optional[int] = None,
 ) -> st.SearchStrategy[Shape]:
-    """hello world"""
+    """Return a strategy for array shapes (tuples of int >= 1)."""
     check_type(int, min_dims, "min_dims")
     check_type(int, min_side, "min_side")
 
@@ -434,7 +443,7 @@ def check_dtypes(xp, dtypes: List[Type[DataType]], stubs: List[str]):
 
 
 def scalar_dtypes(xp) -> st.SearchStrategy[Type[DataType]]:
-    """hello world"""
+    """Return a strategy for all Array API dtypes."""
     infer_xp_is_compliant(xp)
 
     dtypes, stubs = partition_attributes_and_stubs(xp, DTYPE_NAMES)
@@ -444,7 +453,6 @@ def scalar_dtypes(xp) -> st.SearchStrategy[Type[DataType]]:
 
 
 def boolean_dtypes(xp) -> st.SearchStrategy[Type[Boolean]]:
-    """hello world"""
     infer_xp_is_compliant(xp)
 
     try:
@@ -479,7 +487,7 @@ def numeric_dtype_names(base_name: str, sizes: Sequence[int]):
 def integer_dtypes(
     xp, *, sizes: Union[int, Sequence[int]] = (8, 16, 32, 64)
 ) -> st.SearchStrategy[Type[SignedInteger]]:
-    """hello world"""
+    """Return a strategy for signed integer dtypes in the Array API."""
     infer_xp_is_compliant(xp)
 
     if isinstance(sizes, int):
@@ -497,7 +505,7 @@ def integer_dtypes(
 def unsigned_integer_dtypes(
     xp, *, sizes: Union[int, Sequence[int]] = (8, 16, 32, 64)
 ) -> st.SearchStrategy[Type[UnsignedInteger]]:
-    """hello world"""
+    """Return a strategy for unsigned integer dtypes in the Array API."""
     infer_xp_is_compliant(xp)
 
     if isinstance(sizes, int):
@@ -515,7 +523,7 @@ def unsigned_integer_dtypes(
 def floating_dtypes(
     xp, *, sizes: Union[int, Sequence[int]] = (32, 64)
 ) -> st.SearchStrategy[Type[Float]]:
-    """hello world"""
+    """Return a strategy for floating dtypes in the Array API."""
     infer_xp_is_compliant(xp)
 
     if isinstance(sizes, int):
@@ -536,7 +544,7 @@ def valid_tuple_axes(
     min_size: int = 0,
     max_size: Optional[int] = None,
 ) -> st.SearchStrategy[Shape]:
-    """hello world"""
+    """Return a strategy for something I don't quite understand yet."""
     if max_size is None:
         max_size = ndim
 
@@ -651,7 +659,8 @@ def broadcastable_shapes(
     min_side: int = 1,
     max_side: Optional[int] = None,
 ) -> st.SearchStrategy[Shape]:
-    """hello world"""
+    """Return a strategy for generating shapes that are broadcast-compatible
+    with the provided shape."""
     check_type(tuple, shape, "shape")
     strict_check = max_side is None or max_dims is None
     check_type(int, min_side, "min_side")
@@ -723,7 +732,9 @@ def mutually_broadcastable_shapes(
     min_side: int = 1,
     max_side: Optional[int] = None,
 ) -> st.SearchStrategy[BroadcastableShapes]:
-    """hello world"""
+    """Return a strategy for generating a specified number of shapes, N, that are
+    mutually-broadcastable with one another and with the provided ``base_shape``."""
+
     check_type(int, num_shapes, "num_shapes")
     if num_shapes < 1:
         raise InvalidArgument(f"num_shapes={num_shapes} must be at least 1")
