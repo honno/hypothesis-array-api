@@ -12,6 +12,8 @@
 # v. 2.0. If a copy of the MPL was not distributed with this file, You can
 # obtain one at https://mozilla.org/MPL/2.0/.
 
+"hello world"
+
 import math
 from types import SimpleNamespace
 from typing import (Any, Iterable, List, Mapping, Optional, Sequence, Tuple,
@@ -110,6 +112,7 @@ def order_check(name, floor, min_, max_):
 
 
 def get_strategies_namespace(xp) -> SimpleNamespace:
+    """hello world"""
     infer_xp_is_compliant(xp)
 
     return SimpleNamespace(
@@ -139,6 +142,7 @@ def from_dtype(
     exclude_min: Optional[bool] = None,
     exclude_max: Optional[bool] = None,
 ) -> st.SearchStrategy[Union[bool, int, float]]:
+    """hello world"""
     infer_xp_is_compliant(xp)
 
     if isinstance(dtype, str):
@@ -346,6 +350,7 @@ def arrays(
     fill: Optional[st.SearchStrategy[Any]] = None,
     unique: bool = False,
 ) -> st.SearchStrategy[Array]:
+    """hello world"""
     infer_xp_is_compliant(xp)
     check_xp_attributes(xp, ["empty", "full", "all", "isnan", "bool", "reshape"])
 
@@ -382,6 +387,7 @@ def array_shapes(
     min_side: int = 1,
     max_side: Optional[int] = None,
 ) -> st.SearchStrategy[Shape]:
+    """hello world"""
     check_type(int, min_dims, "min_dims")
     check_type(int, min_side, "min_side")
 
@@ -418,6 +424,7 @@ def check_dtypes(xp, dtypes: List[Type[DataType]], stubs: List[str]):
 
 
 def scalar_dtypes(xp) -> st.SearchStrategy[Type[DataType]]:
+    """hello world"""
     infer_xp_is_compliant(xp)
 
     dtypes, stubs = partition_attributes_and_stubs(xp, DTYPE_NAMES)
@@ -427,6 +434,7 @@ def scalar_dtypes(xp) -> st.SearchStrategy[Type[DataType]]:
 
 
 def boolean_dtypes(xp) -> st.SearchStrategy[Type[Boolean]]:
+    """hello world"""
     infer_xp_is_compliant(xp)
 
     try:
@@ -459,8 +467,9 @@ def numeric_dtype_names(base_name: str, sizes: Sequence[int]):
 
 
 def integer_dtypes(
-    xp, sizes: Union[int, Sequence[int]] = (8, 16, 32, 64)
+    xp, *, sizes: Union[int, Sequence[int]] = (8, 16, 32, 64)
 ) -> st.SearchStrategy[Type[SignedInteger]]:
+    """hello world"""
     infer_xp_is_compliant(xp)
 
     if isinstance(sizes, int):
@@ -476,8 +485,9 @@ def integer_dtypes(
 
 
 def unsigned_integer_dtypes(
-    xp, sizes: Union[int, Sequence[int]] = (8, 16, 32, 64)
+    xp, *, sizes: Union[int, Sequence[int]] = (8, 16, 32, 64)
 ) -> st.SearchStrategy[Type[UnsignedInteger]]:
+    """hello world"""
     infer_xp_is_compliant(xp)
 
     if isinstance(sizes, int):
@@ -493,8 +503,9 @@ def unsigned_integer_dtypes(
 
 
 def floating_dtypes(
-    xp, sizes: Union[int, Sequence[int]] = (32, 64)
+    xp, *, sizes: Union[int, Sequence[int]] = (32, 64)
 ) -> st.SearchStrategy[Type[Float]]:
+    """hello world"""
     infer_xp_is_compliant(xp)
 
     if isinstance(sizes, int):
@@ -515,6 +526,7 @@ def valid_tuple_axes(
     min_size: int = 0,
     max_size: Optional[int] = None,
 ) -> st.SearchStrategy[Shape]:
+    """hello world"""
     if max_size is None:
         max_size = ndim
 
