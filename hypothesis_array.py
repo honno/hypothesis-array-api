@@ -19,6 +19,7 @@ for a general idea on what we're doing here.
 """
 
 import math
+from functools import update_wrapper
 from types import SimpleNamespace
 from typing import (Any, Iterable, List, Mapping, NamedTuple, Optional,
                     Sequence, Tuple, Type, TypeVar, Union)
@@ -122,29 +123,9 @@ def order_check(name, floor, min_, max_):
     if min_ > max_:
         raise InvalidArgument(f"min_{name}={min_} is larger than max_{name}={max_}")
 
-
-def get_strategies_namespace(xp) -> SimpleNamespace:
-    """Creates a strategies namespace."""
-    # TODO: ellaborate, example
-    infer_xp_is_compliant(xp)
-
-    return SimpleNamespace(
-        from_dtype=lambda *a, **kw: from_dtype(xp, *a, **kw),
-        arrays=lambda *a, **kw: arrays(xp, *a, **kw),
-        array_shapes=array_shapes,
-        scalar_dtypes=lambda *a, **kw: scalar_dtypes(xp, *a, **kw),
-        boolean_dtypes=lambda *a, **kw: boolean_dtypes(xp, *a, **kw),
-        integer_dtypes=lambda *a, **kw: integer_dtypes(xp, *a, **kw),
-        unsigned_integer_dtypes=lambda *a, **kw: unsigned_integer_dtypes(xp, *a, **kw),
-        floating_dtypes=lambda *a, **kw: floating_dtypes(xp, *a, **kw),
-        valid_tuple_axes=valid_tuple_axes,
-        broadcastable_shapes=broadcastable_shapes,
-        mutually_broadcastable_shapes=mutually_broadcastable_shapes,
-    )
-
-
 # Note NumPy supports non-array scalars which hypothesis.extra.numpy.from_dtype
 # utilises, but this from_dtype() method returns just base strategies.
+
 
 def from_dtype(
     xp,
@@ -159,8 +140,6 @@ def from_dtype(
 ) -> st.SearchStrategy[Union[bool, int, float]]:
     """Creates a strategy which can generate any castable value of the given
     Array API dtype."""
-    # TODO: - ellaborate on what "any castable value" means
-    #       - explain **kwargs behaviour
     infer_xp_is_compliant(xp)
 
     if isinstance(dtype, str):
@@ -424,11 +403,6 @@ def array_shapes(
     return st.lists(
         st.integers(min_side, max_side), min_size=min_dims, max_size=max_dims
     ).map(tuple)
-
-
-# We assume there are dtypes objects part of the array module namespace.
-# Note there is a current discussion about whether this is expected behaviour:
-# github.com/data-apis/array-api/issues/152
 
 
 def check_dtypes(xp, dtypes: List[Type[DataType]], stubs: List[str]):
@@ -798,3 +772,32 @@ def mutually_broadcastable_shapes(
         min_side=min_side,
         max_side=max_side,
     )
+
+
+def get_strategies_namespace(xp) -> SimpleNamespace:
+    """Creates a strategies namespace."""
+    infer_xp_is_compliant(xp)
+
+    attributes = {
+        "from_dtype": lambda *a, **kw: from_dtype(xp, *a, **kw),
+        "arrays": lambda *a, **kw: arrays(xp, *a, **kw),
+        "array_shapes": array_shapes,
+        "scalar_dtypes": lambda *a, **kw: scalar_dtypes(xp, *a, **kw),
+        "boolean_dtypes": lambda *a, **kw: boolean_dtypes(xp, *a, **kw),
+        "integer_dtypes": lambda *a, **kw: integer_dtypes(xp, *a, **kw),
+        "unsigned_integer_dtypes": lambda *a, **kw: unsigned_integer_dtypes(
+            xp, *a, **kw
+        ),
+        "floating_dtypes": lambda *a, **kw: floating_dtypes(xp, *a, **kw),
+        "valid_tuple_axes": valid_tuple_axes,
+        "broadcastable_shapes": broadcastable_shapes,
+        "mutually_broadcastable_shapes": mutually_broadcastable_shapes,
+    }
+
+    globals_ = globals()
+    for name in attributes.keys():
+        orig_func = globals_[name]
+        wrapped_func = attributes[name]
+        attributes[name] = update_wrapper(wrapped_func, orig_func)
+
+    return SimpleNamespace(**attributes)
