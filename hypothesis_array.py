@@ -716,9 +716,8 @@ def mutually_broadcastable_shapes(
     min_side: int = 1,
     max_side: Optional[int] = None,
 ) -> st.SearchStrategy[BroadcastableShapes]:
-    """Return a strategy for generating a specified number of shapes
-    ``num_shapes`` that are mutually-broadcastable with one another and with the
-    provided base shape ``base_shape``."""
+    """Return a strategy for generating a specified number of shapes that are
+    mutually-broadcastable with one another and with the provided base shape."""
 
     check_type(int, num_shapes, "num_shapes")
     if num_shapes < 1:
@@ -785,6 +784,21 @@ def mutually_broadcastable_shapes(
     )
 
 
+strategy_names_map = {
+    "from_dtype": from_dtype,
+    "arrays": arrays,
+    "array_shapes": array_shapes,
+    "scalar_dtypes": scalar_dtypes,
+    "boolean_dtypes": boolean_dtypes,
+    "integer_dtypes": integer_dtypes,
+    "unsigned_integer_dtypes": unsigned_integer_dtypes,
+    "floating_dtypes": floating_dtypes,
+    "valid_tuple_axes": valid_tuple_axes,
+    "broadcastable_shapes": broadcastable_shapes,
+    "mutually_broadcastable_shapes": mutually_broadcastable_shapes,
+}
+
+
 def get_strategies_namespace(xp) -> SimpleNamespace:
     """Creates a strategies namespace."""
     infer_xp_is_compliant(xp)
@@ -805,10 +819,7 @@ def get_strategies_namespace(xp) -> SimpleNamespace:
         "mutually_broadcastable_shapes": mutually_broadcastable_shapes,
     }
 
-    globals_ = globals()
     for name in attributes.keys():
-        orig_func = globals_[name]
-        wrapped_func = attributes[name]
-        attributes[name] = update_wrapper(wrapped_func, orig_func)
+        attributes[name] = update_wrapper(attributes[name], strategy_names_map[name])
 
     return SimpleNamespace(**attributes)
