@@ -162,6 +162,12 @@ def test_cannot_generate_unique_array_of_too_many_elements():
         strat.example()
 
 
+def test_cannot_fill_with_non_castable_value():
+    strat = xpst.arrays(xp.int8, 10, fill=st.just("not a castable value"))
+    with raises(InvalidArgument):
+        strat.example()
+
+
 @given(
     xpst.arrays(
         dtype=xp.float32,

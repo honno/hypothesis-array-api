@@ -19,6 +19,7 @@ for a general idea on what we're doing here.
 """
 
 import math
+from collections import defaultdict
 from functools import update_wrapper
 from types import SimpleNamespace
 from typing import (Any, Iterable, List, Mapping, NamedTuple, Optional,
@@ -231,47 +232,45 @@ def from_dtype(
 
 
 class ArrayStrategy(st.SearchStrategy):
-    def __init__(self, xp, element_strategy, dtype, shape, fill, unique):
+    def __init__(self, xp, elements_strategy, dtype, shape, fill, unique):
         self.xp = xp
-        self.element_strategy = element_strategy
+        self.elements_strategy = elements_strategy
         self.dtype = dtype
         self.shape = shape
         self.fill = fill
         self.unique = unique
         self.array_size = math.prod(shape)
 
-    def set_element(self, data, result, idx, strategy=None):
-        strategy = strategy or self.element_strategy
-        val = data.draw(strategy)
-
-        try:
-            result[idx] = val
-        except TypeError as e:
-            # TODO check type promotion rules first
-            raise InvalidArgument(
-                f"Could not add generated array element '{repr(val)}'"
-                f"of dtype {type(val)} to array of dtype {result.dtype}."
-            ) from e
-
+    def check_results_set(self, result, idx, val):
         if val == val and self.xp.all(result[idx] != val):
             raise InvalidArgument(
-                f"Generated array element '{repr(val)}' from strategy {strategy}"
+                f"Generated array element {repr(val)} from"
+                f" strategy {self.elements_strategy}"
                 f" cannot be represented as dtype {self.dtype}."
                 f" Array module {self.xp.__name__} instead"
-                f" represents the element as '{result[idx]}'."
+                f" represents the element as {result[idx]}.\n"
                 "Consider using a more precise elements strategy,"
                 " for example passing the width argument to floats()."
             )
 
-        # TODO explicitly check overflow errors
+    def set_value(self, result, i, val):
+        try:
+            result[i] = val
+        except TypeError as e:
+            # TODO check type promotion rules first
+            raise InvalidArgument(
+                f"Could not add generated array element {repr(val)}"
+                f"of dtype {type(val)} to array of dtype {result.dtype}."
+            ) from e
+
+        self.check_results_set(result, i, val)
 
     def do_draw(self, data):
         if 0 in self.shape:
             return self.xp.empty(self.shape, dtype=self.dtype)
 
-        result = self.xp.empty(self.array_size, dtype=self.dtype)
-
         if self.fill.is_empty:
+            result = self.xp.empty(self.array_size, dtype=self.dtype)
             if self.unique:
                 seen = set()
                 elements = cu.many(
@@ -282,25 +281,31 @@ class ArrayStrategy(st.SearchStrategy):
                 )
                 i = 0
                 while elements.more():
-                    self.set_element(data, result, i)
+                    val = data.draw(self.elements_strategy)
+                    self.set_value(result, i, val)
                     if result[i] not in seen:
-                        seen.add(result[i])
+                        seen.add(val)
                         i += 1
                     else:
                         elements.reject()
             else:
                 for i in range(self.array_size):
-                    self.set_element(data, result, i)
+                    val = data.draw(self.elements_strategy)
+                    self.set_value(result, i, val)
         else:
-            # TODO use xp.full() instead for optimisation(?)
-            #      and put set_element() checks into a seperate method
-            self.set_element(
-                data, result, slice(None, None), strategy=self.fill
-            )
+            fill_val = data.draw(self.fill)
+            try:
+                result = self.xp.full(self.array_size, fill_val, dtype=self.dtype)
+            except ValueError as e:
+                raise InvalidArgument(
+                    f"Could not create full array of dtype {self.dtype}"
+                    f" with fill value {repr(fill_val)}"
+                ) from e
+            self.check_results_set(result, slice(None, None), fill_val)
             if self.unique and not self.xp.all(self.xp.isnan(result)):
                 raise InvalidArgument(
                     f"Array module {self.xp.__name__} did not recognise"
-                    f" fill value as NaN - instead got '{repr(result[0])}'."
+                    f" fill value as NaN - instead got {repr(result[0])}."
                     " Cannot fill unique array with non-NaN values."
                 )
 
@@ -311,25 +316,22 @@ class ArrayStrategy(st.SearchStrategy):
                 average_size=math.sqrt(self.array_size),
             )
 
-            index_set = self.xp.full(self.array_size, False, dtype=self.xp.bool)
+            index_set = defaultdict(bool)
             seen = set()
 
             while elements.more():
                 i = cu.integer_range(data, 0, self.array_size - 1)
-
                 if index_set[i]:
                     elements.reject()
                     continue
-
-                self.set_element(data, result, i)
-
+                val = data.draw(self.elements_strategy)
                 if self.unique:
-                    if result[i] in seen:
+                    if val in seen:
                         elements.reject()
                         continue
                     else:
-                        seen.add(result[i])
-
+                        seen.add(val)
+                self.set_value(result, i, val)
                 index_set[i] = True
 
         result = self.xp.reshape(result, self.shape)
