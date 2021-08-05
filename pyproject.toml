@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "hypothesis-array-api"
-version = "0.0.3"
+version = "0.0.4"
 description = "Hypothesis strategies for Array API libraries"
 authors = ["Matthew Barber <quitesimplymatt@gmail.com>"]
 license = "MPL-2.0"
