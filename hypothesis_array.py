@@ -29,6 +29,7 @@ from hypothesis import strategies as st
 from hypothesis.errors import HypothesisWarning, InvalidArgument
 from hypothesis.internal.conjecture import utils as cu
 from hypothesis.internal.validation import check_type, check_valid_interval
+from hypothesis.strategies._internal.strategies import check_strategy
 
 __all__ = [
     "get_strategies_namespace",
@@ -364,16 +365,23 @@ def arrays(
     if isinstance(shape, int):
         shape = (shape,)
 
+    if not all(isinstance(s, int) for s in shape):
+        raise InvalidArgument(
+            f"Array shape must be integer in each dimension, provided shape was {shape}"
+        )
+
     if elements is None:
         elements = from_dtype(xp, dtype)
     elif isinstance(elements, Mapping):
         elements = from_dtype(xp, dtype, **elements)
+    check_strategy(elements, "elements")
 
     if fill is None:
         if unique or not elements.has_reusable_values:
             fill = st.nothing()
         else:
             fill = elements
+    check_strategy(fill, "fill")
 
     return ArrayStrategy(xp, elements, dtype, shape, fill, unique)
 
@@ -548,7 +556,7 @@ class MutuallyBroadcastableShapesStrategy(st.SearchStrategy):
         max_side=None,
     ):
         assert 0 <= min_side <= max_side
-        assert 0 <= min_dims <= max_dims <= 32
+        assert 0 <= min_dims <= max_dims
 
         self.base_shape = base_shape
         self.num_shapes = num_shapes
@@ -706,8 +714,9 @@ def mutually_broadcastable_shapes(
     min_side: int = 1,
     max_side: Optional[int] = None,
 ) -> st.SearchStrategy[BroadcastableShapes]:
-    """Return a strategy for generating a specified number of shapes, N, that are
-    mutually-broadcastable with one another and with the provided ``base_shape``."""
+    """Return a strategy for generating a specified number of shapes
+    ``num_shapes`` that are mutually-broadcastable with one another and with the
+    provided base shape ``base_shape``."""
 
     check_type(int, num_shapes, "num_shapes")
     if num_shapes < 1:
