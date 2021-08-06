@@ -559,9 +559,6 @@ class MutuallyBroadcastableShapesStrategy(st.SearchStrategy):
         min_side=1,
         max_side=None,
     ):
-        assert 0 <= min_side <= max_side
-        assert 0 <= min_dims <= max_dims
-
         self.base_shape = base_shape
         self.num_shapes = num_shapes
         self.min_dims = min_dims
@@ -648,35 +645,34 @@ def broadcastable_shapes(
     """Return a strategy for generating shapes that are broadcast-compatible
     with the provided shape."""
     check_type(tuple, shape, "shape")
-    strict_check = max_side is None or max_dims is None
     check_type(int, min_side, "min_side")
     check_type(int, min_dims, "min_dims")
 
+    strict_check = max_side is None or max_dims is None
+
     if max_dims is None:
         max_dims = min(32, max(len(shape), min_dims) + 2)
-    else:
-        check_type(int, max_dims, "max_dims")
+    check_type(int, max_dims, "max_dims")
 
     if max_side is None:
-        max_side = max(tuple(shape[-max_dims:]) + (min_side,)) + 2
-    else:
-        check_type(int, max_side, "max_side")
+        max_side = max(shape[-max_dims:] + (min_side,)) + 2
+    check_type(int, max_side, "max_side")
 
     order_check("dims", 0, min_dims, max_dims)
     order_check("side", 0, min_side, max_side)
 
-    if 32 < max_dims:
-        raise InvalidArgument("max_dims cannot exceed 32")
-
-    dims, bound_name = (max_dims, "max_dims") if strict_check else (
-        min_dims, "min_dims")
+    if strict_check:
+        dims = max_dims
+        bound_name = "max_dims"
+    else:
+        dims = min_dims
+        bound_name = "min_dims"
 
     # check for unsatisfiable min_side
     if not all(min_side <= s for s in shape[::-1][:dims] if s != 1):
         raise InvalidArgument(
-            "Given shape=%r, there are no broadcast-compatible "
-            "shapes that satisfy: %s=%s and min_side=%s"
-            % (shape, bound_name, dims, min_side)
+            f"Given shape={shape}, there are no broadcast-compatible"
+            f" shapes that satisfy: {bound_name}={dims} and min_side={min_side}"
         )
 
     # check for unsatisfiable [min_side, max_side]
@@ -684,14 +680,14 @@ def broadcastable_shapes(
         min_side <= 1 <= max_side or all(s <= max_side for s in shape[::-1][:dims])
     ):
         raise InvalidArgument(
-            "Given shape=%r, there are no broadcast-compatible shapes "
-            "that satisfy: %s=%s and [min_side=%s, max_side=%s]"
-            % (shape, bound_name, dims, min_side, max_side)
+            f"Given base_shape={shape}, there are no broadcast-compatible"
+            f" shapes that satisfy all of {bound_name}={dims},"
+            f" min_side={min_side}, and max_side={max_side}"
         )
 
     if not strict_check:
         # reduce max_dims to exclude unsatisfiable dimensions
-        for n, s in zip(range(max_dims), reversed(shape)):
+        for n, s in zip(range(max_dims), shape[::-1]):
             if s < min_side and s != 1:
                 max_dims = n
                 break
@@ -788,7 +784,6 @@ def mutually_broadcastable_shapes(
 
 class BasicIndexStrategy(st.SearchStrategy):
     def __init__(self, shape, min_dims, max_dims, allow_ellipsis, allow_newaxis):
-        assert 0 <= min_dims <= max_dims
         self.shape = shape
         self.min_dims = min_dims
         self.max_dims = max_dims
@@ -846,7 +841,7 @@ def basic_indices(
     allow_newaxis: bool = False,
     allow_ellipsis: bool = True,
 ) -> st.SearchStrategy[BasicIndex]:
-    """Return a strategy for basic (non-array) indices."""
+    """Return a strategy for  indices."""
     # Arguments to exclude scalars, zero-dim arrays, and dims of size zero were
     # all considered and rejected.  We want users to explicitly consider those
     # cases if they're dealing in general indexers, and while it's fiddly we can
