@@ -38,6 +38,7 @@ METHODS_MAP = {
     "empty": np.empty,
     "zeros": np.zeros,
     "ones": np.ones,
+    "arange": np.arange,
     "full": np.full,
     "any": np.any,
     "all": np.all,

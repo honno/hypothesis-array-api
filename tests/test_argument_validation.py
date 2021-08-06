@@ -188,6 +188,17 @@ def e(a, **kwargs):
             min_side=2,
             max_side=3,
         ),
+
+        e(xpst.basic_indices, shape=0),
+        e(xpst.basic_indices, shape=("1", "2")),
+        e(xpst.basic_indices, shape=(0, -1)),
+        e(xpst.basic_indices, shape=(0, 0), allow_newaxis=None),
+        e(xpst.basic_indices, shape=(0, 0), allow_ellipsis=None),
+        e(xpst.basic_indices, shape=(0, 0), min_dims=-1),
+        e(xpst.basic_indices, shape=(0, 0), min_dims=1.0),
+        e(xpst.basic_indices, shape=(0, 0), max_dims=-1),
+        e(xpst.basic_indices, shape=(0, 0), max_dims=1.0),
+        e(xpst.basic_indices, shape=(0, 0), min_dims=2, max_dims=1),
     ],
 )
 def test_raise_invalid_argument(function, kwargs):
