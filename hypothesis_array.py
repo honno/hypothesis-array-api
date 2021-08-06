@@ -46,6 +46,7 @@ __all__ = [
     "valid_tuple_axes",
     "broadcastable_shapes",
     "mutually_broadcastable_shapes",
+    "indices",
 ]
 
 
@@ -782,13 +783,13 @@ def mutually_broadcastable_shapes(
     )
 
 
-class BasicIndexStrategy(st.SearchStrategy):
-    def __init__(self, shape, min_dims, max_dims, allow_ellipsis, allow_newaxis):
+class IndexStrategy(st.SearchStrategy):
+    def __init__(self, shape, min_dims, max_dims, allow_ellipsis, allow_none):
         self.shape = shape
         self.min_dims = min_dims
         self.max_dims = max_dims
         self.allow_ellipsis = allow_ellipsis
-        self.allow_newaxis = allow_newaxis
+        self.allow_none = allow_none
 
     def do_draw(self, data):
         # General plan: determine the actual selection up front with a straightforward
@@ -803,7 +804,7 @@ class BasicIndexStrategy(st.SearchStrategy):
         # Insert some number of new size-one dimensions if allowed
         result_dims = sum(isinstance(idx, slice) for idx in result)
         while (
-            self.allow_newaxis
+            self.allow_none
             and result_dims < self.max_dims
             and (result_dims < self.min_dims or data.draw(st.booleans()))
         ):
@@ -833,22 +834,18 @@ class BasicIndexStrategy(st.SearchStrategy):
         return tuple(result)
 
 
-def basic_indices(
+def indices(
     shape: Shape,
     *,
     min_dims: int = 0,
     max_dims: Optional[int] = None,
-    allow_newaxis: bool = False,
     allow_ellipsis: bool = True,
+    allow_none: bool = False,
 ) -> st.SearchStrategy[BasicIndex]:
-    """Return a strategy for  indices."""
-    # Arguments to exclude scalars, zero-dim arrays, and dims of size zero were
-    # all considered and rejected.  We want users to explicitly consider those
-    # cases if they're dealing in general indexers, and while it's fiddly we can
-    # back-compatibly add them later (hence using kwonlyargs).
+    """Return a strategy for indices."""
     check_type(tuple, shape, "shape")
     check_type(bool, allow_ellipsis, "allow_ellipsis")
-    check_type(bool, allow_newaxis, "allow_newaxis")
+    check_type(bool, allow_none, "allow_none")
     check_type(int, min_dims, "min_dims")
     if max_dims is None:
         max_dims = min(max(len(shape), min_dims) + 2, 32)
@@ -858,12 +855,12 @@ def basic_indices(
         raise InvalidArgument(
             f"shape={repr(shape)}, but all dimensions must be of integer size >= 0"
         )
-    return BasicIndexStrategy(
+    return IndexStrategy(
         shape,
         min_dims=min_dims,
         max_dims=max_dims,
         allow_ellipsis=allow_ellipsis,
-        allow_newaxis=allow_newaxis,
+        allow_none=allow_none,
     )
 
 
@@ -898,5 +895,5 @@ def get_strategies_namespace(xp) -> SimpleNamespace:
         valid_tuple_axes=valid_tuple_axes,
         broadcastable_shapes=broadcastable_shapes,
         mutually_broadcastable_shapes=mutually_broadcastable_shapes,
-        basic_indices=basic_indices,
+        indices=indices,
     )

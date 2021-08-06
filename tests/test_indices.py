@@ -34,38 +34,38 @@ xpst = get_strategies_namespace(xp)
         param(lambda ix: Ellipsis not in ix, id="Ellipsis not in ix"),
     ],
 )
-def test_basic_indices_options(condition):
+def test_indices_options(condition):
     indexers = xpst.array_shapes(min_dims=0, max_dims=32).flatmap(
-        lambda shape: xpst.basic_indices(shape, allow_newaxis=True)
+        lambda shape: xpst.indices(shape, allow_none=True)
     )
     find_any(indexers, condition)
 
 
-def test_basic_indices_can_generate_empty_tuple():
-    find_any(xpst.basic_indices(shape=(0, 0), allow_ellipsis=True), lambda ix: ix == ())
+def test_indices_can_generate_empty_tuple():
+    find_any(xpst.indices(shape=(0, 0), allow_ellipsis=True), lambda ix: ix == ())
 
 
-def test_basic_indices_can_generate_non_tuples():
+def test_indices_can_generate_non_tuples():
     find_any(
-        xpst.basic_indices(shape=(0, 0), allow_ellipsis=True),
+        xpst.indices(shape=(0, 0), allow_ellipsis=True),
         lambda ix: not isinstance(ix, tuple),
     )
 
 
-def test_basic_indices_can_generate_long_ellipsis():
+def test_indices_can_generate_long_ellipsis():
     # Runs of slice(None) - such as [0,:,:,:,0] - can be replaced by e.g. [0,...,0]
     find_any(
-        xpst.basic_indices(shape=(1, 0, 0, 0, 1), allow_ellipsis=True),
+        xpst.indices(shape=(1, 0, 0, 0, 1), allow_ellipsis=True),
         lambda ix: len(ix) == 3 and ix[1] == Ellipsis,
     )
 
 
 @given(
-    xpst.basic_indices(shape=(0, 0, 0, 0, 0)).filter(
+    xpst.indices(shape=(0, 0, 0, 0, 0)).filter(
         lambda idx: isinstance(idx, tuple) and Ellipsis in idx
     )
 )
-def test_basic_indices_replaces_whole_axis_slices_with_ellipsis(idx):
+def test_indices_replaces_whole_axis_slices_with_ellipsis(idx):
     # If ... is in the slice, it replaces all ,:, entries for this shape.
     assert slice(None) not in idx
 
@@ -75,25 +75,25 @@ def test_basic_indices_replaces_whole_axis_slices_with_ellipsis(idx):
     | xpst.array_shapes(min_dims=0, min_side=0, max_side=10),
     min_dims=st.integers(0, 5),
     allow_ellipsis=st.booleans(),
-    allow_newaxis=st.booleans(),
+    allow_none=st.booleans(),
     data=st.data(),
 )
-def test_basic_indices_generate_valid_indexers(
-    shape, min_dims, allow_ellipsis, allow_newaxis, data
+def test_indices_generate_valid_indexers(
+    shape, min_dims, allow_ellipsis, allow_none, data
 ):
     max_dims = data.draw(st.none() | st.integers(min_dims, 32), label="max_dims")
     indexer = data.draw(
-        xpst.basic_indices(
+        xpst.indices(
             shape,
             min_dims=min_dims,
             max_dims=max_dims,
             allow_ellipsis=allow_ellipsis,
-            allow_newaxis=allow_newaxis,
+            allow_none=allow_none,
         ),
         label="indexer",
     )
     # Check that disallowed things are indeed absent
-    if not allow_newaxis:
+    if not allow_none:
         if isinstance(indexer, tuple):
             assert 0 <= len(indexer) <= len(shape) + int(allow_ellipsis)
         else:
