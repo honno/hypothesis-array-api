@@ -784,42 +784,35 @@ def mutually_broadcastable_shapes(
     )
 
 
-strategy_names_map = {
-    "from_dtype": from_dtype,
-    "arrays": arrays,
-    "array_shapes": array_shapes,
-    "scalar_dtypes": scalar_dtypes,
-    "boolean_dtypes": boolean_dtypes,
-    "integer_dtypes": integer_dtypes,
-    "unsigned_integer_dtypes": unsigned_integer_dtypes,
-    "floating_dtypes": floating_dtypes,
-    "valid_tuple_axes": valid_tuple_axes,
-    "broadcastable_shapes": broadcastable_shapes,
-    "mutually_broadcastable_shapes": mutually_broadcastable_shapes,
-}
-
-
 def get_strategies_namespace(xp) -> SimpleNamespace:
     """Creates a strategies namespace."""
     infer_xp_is_compliant(xp)
 
-    attributes = {
-        "from_dtype": lambda *a, **kw: from_dtype(xp, *a, **kw),
-        "arrays": lambda *a, **kw: arrays(xp, *a, **kw),
-        "array_shapes": array_shapes,
-        "scalar_dtypes": lambda *a, **kw: scalar_dtypes(xp, *a, **kw),
-        "boolean_dtypes": lambda *a, **kw: boolean_dtypes(xp, *a, **kw),
-        "integer_dtypes": lambda *a, **kw: integer_dtypes(xp, *a, **kw),
-        "unsigned_integer_dtypes": lambda *a, **kw: unsigned_integer_dtypes(
-            xp, *a, **kw
+    return SimpleNamespace(
+        from_dtype=update_wrapper(
+            lambda *a, **kw: from_dtype(xp, *a, **kw), from_dtype
         ),
-        "floating_dtypes": lambda *a, **kw: floating_dtypes(xp, *a, **kw),
-        "valid_tuple_axes": valid_tuple_axes,
-        "broadcastable_shapes": broadcastable_shapes,
-        "mutually_broadcastable_shapes": mutually_broadcastable_shapes,
-    }
-
-    for name in attributes.keys():
-        attributes[name] = update_wrapper(attributes[name], strategy_names_map[name])
-
-    return SimpleNamespace(**attributes)
+        arrays=update_wrapper(
+            lambda *a, **kw: arrays(xp, *a, **kw), arrays
+        ),
+        array_shapes=array_shapes,
+        scalar_dtypes=update_wrapper(
+            lambda *a, **kw: scalar_dtypes(xp, *a, **kw), scalar_dtypes
+        ),
+        boolean_dtypes=update_wrapper(
+            lambda *a, **kw: boolean_dtypes(xp, *a, **kw), boolean_dtypes
+        ),
+        integer_dtypes=update_wrapper(
+            lambda *a, **kw: integer_dtypes(xp, *a, **kw), integer_dtypes
+        ),
+        unsigned_integer_dtypes=update_wrapper(
+            lambda *a, **kw: unsigned_integer_dtypes(xp, *a, **kw),
+            unsigned_integer_dtypes,
+        ),
+        floating_dtypes=update_wrapper(
+            lambda *a, **kw: floating_dtypes(xp, *a, **kw), floating_dtypes
+        ),
+        valid_tuple_axes=valid_tuple_axes,
+        broadcastable_shapes=broadcastable_shapes,
+        mutually_broadcastable_shapes=mutually_broadcastable_shapes,
+    )
