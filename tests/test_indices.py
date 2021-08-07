@@ -16,7 +16,7 @@ import math
 
 from hypothesis import assume, given
 from hypothesis import strategies as st
-from pytest import mark, param
+from pytest import mark
 
 from hypothesis_array import get_strategies_namespace
 
@@ -30,9 +30,10 @@ xpst = get_strategies_namespace(xp)
 @mark.parametrize(
     "condition",
     [
-        param(lambda ix: Ellipsis in ix, id="Ellipsis in ix"),
-        param(lambda ix: Ellipsis not in ix, id="Ellipsis not in ix"),
+        lambda ix: Ellipsis in ix,
+        lambda ix: Ellipsis not in ix,
     ],
+    ids=["Ellipsis in ix", "Ellipsis not in ix"]
 )
 def test_indices_options(condition):
     indexers = xpst.array_shapes(min_dims=0, max_dims=32).flatmap(
