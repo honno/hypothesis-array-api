@@ -151,7 +151,6 @@ def from_dtype(
         if dtype in DTYPE_NAMES:
             try:
                 dtype = getattr(xp, dtype)
-                return from_dtype(xp, dtype)
             except AttributeError as e:
                 raise InvalidArgument(
                     f"Array module {xp.__name__} does not have"
