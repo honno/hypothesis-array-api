@@ -154,6 +154,23 @@ def find_dtype_builtin_family(
     return builtin_family, stubs
 
 
+def dtype_from_name(xp, name: str) -> Type[DataType]:
+    if name in DTYPE_NAMES:
+        try:
+            return getattr(xp, name)
+        except AttributeError as e:
+            raise InvalidArgument(
+                f"Array module {xp.__name__} does not have "
+                f"dtype {name} in its namespace"
+            ) from e
+    else:
+        f_valid_dtypes = ", ".join(DTYPE_NAMES)
+        raise InvalidArgument(
+            f"{name} is not a valid Array API data type "
+            f"(pick from: {f_valid_dtypes})"
+        )
+
+
 def from_dtype(
     xp,
     dtype: Union[Type[DataType], str],
@@ -171,20 +188,7 @@ def from_dtype(
     check_xp_attributes(xp, ["iinfo", "finfo"])
 
     if isinstance(dtype, str):
-        if dtype in DTYPE_NAMES:
-            try:
-                dtype = getattr(xp, dtype)
-            except AttributeError as e:
-                raise InvalidArgument(
-                    f"Array module {xp.__name__} does not have "
-                    f"dtype {dtype} in its namespace"
-                ) from e
-        else:
-            f_valid_dtypes = ", ".join(DTYPE_NAMES)
-            raise InvalidArgument(
-                f"{dtype} is not a valid Array API data type "
-                f"(pick from: {f_valid_dtypes})"
-            )
+        dtype = dtype_from_name(xp, dtype)
 
     builtin_family, stubs = find_dtype_builtin_family(xp, dtype)
 
@@ -378,9 +382,11 @@ def arrays(
             lambda s: arrays(xp, dtype, s, elements=elements, fill=fill, unique=unique)
         )
 
+    if isinstance(dtype, str):
+        dtype = dtype_from_name(xp, dtype)
+
     if isinstance(shape, int):
         shape = (shape,)
-
     if not all(isinstance(s, int) for s in shape):
         raise InvalidArgument(
             f"Array shape must be integer in each dimension, provided shape was {shape}"
@@ -391,9 +397,6 @@ def arrays(
     elif isinstance(elements, Mapping):
         elements = from_dtype(xp, dtype, **elements)
     check_strategy(elements, "elements")
-
-    if isinstance(dtype, str):
-        dtype = getattr(xp, dtype)
 
     if fill is None:
         if unique or not elements.has_reusable_values:

@@ -22,7 +22,7 @@ from pytest import mark, raises
 from hypothesis_array import DTYPE_NAMES, get_strategies_namespace
 
 from .common.debug import find_any, minimal
-from .common.utils import fails_with
+from .common.utils import fails_with, flaky
 from .xputils import create_array_module
 
 xp = create_array_module()
@@ -146,6 +146,12 @@ def test_can_minimize_large_arrays():
         for nonzero_indices in xp.nonzero(array):
             nonzero_count += nonzero_indices.size
         assert nonzero_count in (1, array.size - 1)
+
+
+@flaky(max_runs=50, min_passes=1)
+def test_can_minimize_float_arrays():
+    smallest = minimal(xps.arrays(xp.float32, 50), lambda x: xp.sum(x) >= 1.0)
+    assert xp.sum(smallest) in (1, 50)
 
 
 @given(xps.arrays(xp.int8, st.integers(0, 20), unique=True))
