@@ -14,7 +14,7 @@
 
 from math import prod
 
-from hypothesis import given
+from hypothesis import assume, given
 from hypothesis import strategies as st
 from hypothesis.errors import InvalidArgument, Unsatisfiable
 from pytest import mark, raises
@@ -277,3 +277,73 @@ def test_floats_can_be_constrained_at_low_width(array):
 def test_floats_can_be_constrained_at_low_width_excluding_endpoints(array):
     assert xp.all(array > 0)
     assert xp.all(array < 1)
+
+
+def count_unique(array):
+    """Returns the number of unique elements.
+    NaN values are treated as unique to eachother.
+
+    The Array API doesn't specify how ``unique()`` should behave for Nan values,
+    so this method provides consistent behaviour.
+    """
+    n_unique = 0
+
+    nan_index = xp.isnan(array)
+    for isnan, count in zip(*xp.unique(nan_index, return_counts=True)):
+        if isnan:
+            n_unique += count
+            break
+
+    filtered_array = array[~nan_index]  # TODO Array API makes boolean indexing optinal
+    unique_array = xp.unique(filtered_array)
+    n_unique += unique_array.size
+
+    return n_unique
+
+
+@given(
+    xps.arrays(
+        dtype=xp.float32,
+        elements=st.just(xp.nan),
+        shape=xps.array_shapes(),
+    )
+)
+def test_count_unique(array):
+    assert count_unique(array) == array.size
+
+
+@given(
+    xps.arrays(
+        dtype=xp.float32,
+        elements=st.floats(allow_nan=False, width=32),
+        shape=10,
+        unique=True,
+        fill=st.just(xp.nan),
+    )
+)
+def test_is_still_unique_with_nan_fill(array):
+    if hasattr(xp, "unique"):
+        assert count_unique(array) == array.size
+
+
+@given(
+    xps.arrays(
+        dtype=xp.float32,
+        shape=10,
+        unique=True,
+        elements=st.integers(1, 9),
+        fill=st.just(xp.nan),
+    )
+)
+def test_unique_array_with_fill_can_use_all_elements(array):
+    if hasattr(xp, "unique"):
+        assume(count_unique(array) == array.size)
+
+
+@given(xps.arrays(dtype=xp.uint8, shape=25, unique=True, fill=st.nothing()))
+def test_unique_array_without_fill(array):
+    # This test covers the collision-related branches for fully dense unique arrayays.
+    # Choosing 25 of 256 possible elements means we're almost certain to see colisions
+    # thanks to the 'birthday paradox', but finding unique elemennts is still easy.
+    if hasattr(xp, "unique"):
+        assume(count_unique(array) == array.size)
