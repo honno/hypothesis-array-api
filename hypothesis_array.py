@@ -128,30 +128,30 @@ def order_check(name, floor, min_, max_):
         raise InvalidArgument(f"min_{name}={min_} is larger than max_{name}={max_}")
 
 
-def find_dtype_family(
+def find_dtype_builtin_family(
         xp, dtype: Type[DataType]
 ) -> Tuple[Type[Union[bool, int, float]], List[str]]:
-    family_type = None
+    builtin_family = None
     stubs = []
 
     try:
         bool_dtype = xp.bool
         if dtype == bool_dtype:
-            family_type = bool
+            builtin_family = bool
     except AttributeError:
         stubs.append("bool")
 
     int_dtypes, int_stubs = partition_attributes_and_stubs(xp, ALL_INT_NAMES)
     if dtype in int_dtypes:
-        family_type = int
+        builtin_family = int
     stubs.extend(int_stubs)
 
     float_dtypes, float_stubs = partition_attributes_and_stubs(xp, FLOAT_NAMES)
     if dtype in float_dtypes:
-        family_type = float
+        builtin_family = float
     stubs.extend(float_stubs)
 
-    return family_type, stubs
+    return builtin_family, stubs
 
 
 def from_dtype(
@@ -186,9 +186,9 @@ def from_dtype(
                 f"(pick from: {f_valid_dtypes})"
             )
 
-    family_type, stubs = find_dtype_family(xp, dtype)
+    builtin_family, stubs = find_dtype_builtin_family(xp, dtype)
 
-    if family_type is bool:
+    if builtin_family is bool:
         return st.booleans()
 
     def minmax_values_kw(info):
@@ -216,12 +216,12 @@ def from_dtype(
 
         return kw
 
-    if family_type is int:
+    if builtin_family is int:
         iinfo = xp.iinfo(dtype)
         kw = minmax_values_kw(iinfo)
         return st.integers(**kw)
 
-    if family_type is float:
+    if builtin_family is float:
         finfo = xp.finfo(dtype)
 
         kw = minmax_values_kw(finfo)
@@ -252,22 +252,8 @@ class ArrayStrategy(st.SearchStrategy):
         self.unique = unique
         self.array_size = math.prod(shape)
 
-        family_type, stubs = find_dtype_family(self.xp, self.dtype)
-        if family_type is bool:
-            def inbounds(x: bool) -> bool:
-                return True
-        elif family_type is int:
-            iinfo = self.xp.iinfo(self.dtype)
-
-            def inbounds(x: int) -> bool:
-                return iinfo.min <= x <= iinfo.max
-        elif family_type is float:
-            finfo = self.xp.finfo(self.dtype)
-
-            def inbounds(x: float) -> float:
-                return finfo.min <= x <= finfo.max
-        self.family_type = family_type
-        self.inbounds_check = inbounds  # TODO cache this
+        builtin_family, _ = find_dtype_builtin_family(xp, dtype)
+        self.builtin = builtin_family
 
     def set_value(self, result, i, val, strategy=None):
         strategy = strategy or self.elements_strategy
@@ -278,12 +264,11 @@ class ArrayStrategy(st.SearchStrategy):
                 f"Could not add generated array element {val!r} "
                 f"of dtype {type(val)} to array of dtype {result.dtype}."
             ) from e
-        self.check_set_value(val, result[i])
+        self.check_set_value(val, result[i], strategy)
 
-    def check_set_value(self, val, val_0d, strategy=None):
-        strategy = strategy or self.elements_strategy
-
-        if val == val and val_0d != val:
+    def check_set_value(self, val, val_0d, strategy):
+        if ((val == val and val_0d != val) or
+                (self.xp.isfinite(val_0d) and self.builtin(val_0d) != val)):
             raise InvalidArgument(
                 f"Generated array element {val!r} from strategy {strategy} "
                 f"cannot be represented as dtype {self.dtype}. "
@@ -292,16 +277,6 @@ class ArrayStrategy(st.SearchStrategy):
                 "Consider using a more precise elements strategy, "
                 "for example passing the width argument to floats()."
             )
-
-        if self.xp.isfinite(val_0d):
-            builtin_val = self.family_type(val)
-            if not self.inbounds_check(builtin_val):
-                raise InvalidArgument(
-                    f"Generated array element {val!r} from strategy {strategy} "
-                    f"is out of the bounds for {self.dtype}. "
-                    f"Array module {self.xp.__name__} instead "
-                    f"represents the element as {builtin_val}."
-                )
 
     def do_draw(self, data):
         if 0 in self.shape:
@@ -340,7 +315,7 @@ class ArrayStrategy(st.SearchStrategy):
                     f"with fill value {fill_val!r}"
                 ) from e
             sample = result[0]
-            self.check_set_value(fill_val, sample)
+            self.check_set_value(fill_val, sample, strategy=self.fill)
             if self.unique and not self.xp.all(self.xp.isnan(result)):
                 raise InvalidArgument(
                     f"Array module {self.xp.__name__} did not recognise fill "
@@ -392,8 +367,7 @@ def arrays(
     """Returns a strategy for generating Array API arrays."""
 
     infer_xp_is_compliant(xp)
-    check_xp_attributes(xp, ["empty", "full", "all", "isnan",
-                        "bool", "reshape", "iinfo", "finfo", "isfinite"])
+    check_xp_attributes(xp, ["empty", "full", "all", "isnan", "isfinite", "reshape"])
 
     if isinstance(dtype, st.SearchStrategy):
         return dtype.flatmap(
