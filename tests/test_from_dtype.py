@@ -25,12 +25,12 @@ from hypothesis_array import get_strategies_namespace
 from .xputils import DTYPE_NAMES, create_array_module
 
 xp = create_array_module()
-xpst = get_strategies_namespace(xp)
+xps = get_strategies_namespace(xp)
 
 
-@given(xpst.scalar_dtypes())
+@given(xps.scalar_dtypes())
 def test_strategies_for_standard_dtypes_have_reusable_values(dtype):
-    assert xpst.from_dtype(dtype).has_reusable_values
+    assert xps.from_dtype(dtype).has_reusable_values
 
 
 @lru_cache()
@@ -49,7 +49,7 @@ def test_produces_instances_from_dtype(name):
     builtin = builtin_from_dtype_name(name)
     dtype = getattr(xp, name)
 
-    @given(xpst.from_dtype(dtype))
+    @given(xps.from_dtype(dtype))
     def test_is_builtin(value):
         assert isinstance(value, builtin)
 
@@ -60,7 +60,7 @@ def test_produces_instances_from_dtype(name):
 def test_produces_instances_from_name(name):
     builtin = builtin_from_dtype_name(name)
 
-    @given(xpst.from_dtype(name))
+    @given(xps.from_dtype(name))
     def test_is_builtin(value):
         assert isinstance(value, builtin)
 
@@ -70,23 +70,23 @@ def test_produces_instances_from_name(name):
 DTYPES = [getattr(xp, name) for name in DTYPE_NAMES["all"]]
 
 
-@given(xpst.scalar_dtypes(), st.data())
+@given(xps.scalar_dtypes(), st.data())
 @settings(max_examples=100)
 def test_infer_strategy_from_dtype(dtype, data):
     # Given a dtype
     assert dtype in DTYPES
     # We can infer a strategy
-    strat = xpst.from_dtype(dtype)
+    strat = xps.from_dtype(dtype)
     assert isinstance(strat, st.SearchStrategy)
     # And use it to fill an array of that dtype
-    strat = xpst.arrays(dtype, 10, elements=strat)
+    strat = xps.arrays(dtype, 10, elements=strat)
     data.draw(strat)
 
 
-@given(st.data(), xpst.scalar_dtypes())
+@given(st.data(), xps.scalar_dtypes())
 def test_all_inferred_scalar_strategies_roundtrip(data, dtype):
     array = xp.zeros(shape=1, dtype=dtype)
-    ex = data.draw(xpst.from_dtype(array.dtype))
+    ex = data.draw(xps.from_dtype(array.dtype))
     assume(xp.all(ex == ex))  # the roundtrip test *should* fail!  (eg NaN)
     array[0] = ex
     assert array[0] == ex
@@ -116,6 +116,6 @@ def test_all_inferred_scalar_strategies_roundtrip(data, dtype):
 )
 @given(data=st.data())
 def test_from_dtype_with_kwargs(data, dtype, kwargs, predicate):
-    strat = xpst.from_dtype(dtype, **kwargs)
+    strat = xps.from_dtype(dtype, **kwargs)
     value = data.draw(strat)
     assert predicate(value)

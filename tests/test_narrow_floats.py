@@ -21,14 +21,14 @@ from hypothesis_array import get_strategies_namespace
 from .xputils import create_array_module
 
 xp = create_array_module()
-xpst = get_strategies_namespace(xp)
+xps = get_strategies_namespace(xp)
 
 
 @mark.parametrize("dtype", [xp.float32, xp.float64])
 @mark.parametrize("low", [-2.0, -1.0, 0.0, 1.0])
 @given(st.data())
 def test_bad_float_exclude_min_in_array(dtype, low, data):
-    strat = xpst.arrays(
+    strat = xps.arrays(
         dtype=dtype,
         shape=(),
         elements={

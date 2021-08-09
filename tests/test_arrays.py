@@ -26,13 +26,13 @@ from .common.utils import fails_with
 from .xputils import DTYPE_NAMES, create_array_module
 
 xp = create_array_module()
-xpst = get_strategies_namespace(xp)
+xps = get_strategies_namespace(xp)
 
 
 @given(st.data())
 def test_can_generate_arrays_from_scalars(data):
-    dtype = data.draw(xpst.scalar_dtypes())
-    array = data.draw(xpst.arrays(dtype, ()))
+    dtype = data.draw(xps.scalar_dtypes())
+    array = data.draw(xps.arrays(dtype, ()))
 
     assert array.dtype == dtype
     # TODO check array.__array_namespace__()
@@ -40,15 +40,15 @@ def test_can_generate_arrays_from_scalars(data):
 
 @given(st.sampled_from(DTYPE_NAMES["all"]), st.data())
 def test_can_generate_arrays_from_scalar_names(name, data):
-    array = data.draw(xpst.arrays(name, ()))
+    array = data.draw(xps.arrays(name, ()))
     assert array.dtype == getattr(xp, name)
     # TODO check array.__array_namespace__()
 
 
 @given(st.data())
 def test_can_generate_arrays_from_shapes(data):
-    shape = data.draw(xpst.array_shapes())
-    array = data.draw(xpst.arrays(xp.bool, shape))
+    shape = data.draw(xps.array_shapes())
+    array = data.draw(xps.arrays(xp.bool, shape))
 
     assert array.ndim == len(shape)
     assert array.shape == shape
@@ -58,7 +58,7 @@ def test_can_generate_arrays_from_shapes(data):
 
 @given(st.integers(0, 10), st.data())
 def test_can_generate_arrays_from_int_shapes(size, data):
-    array = data.draw(xpst.arrays(xp.bool, size))
+    array = data.draw(xps.arrays(xp.bool, size))
 
     assert array.ndim == 1
     assert array.shape == (size,)
@@ -69,13 +69,13 @@ def test_can_generate_arrays_from_int_shapes(size, data):
 @given(st.data())
 def test_can_draw_arrays_from_scalar_strategies(data):
     strat = data.draw(st.sampled_from([
-        xpst.scalar_dtypes(),
-        xpst.boolean_dtypes(),
-        xpst.integer_dtypes(),
-        xpst.unsigned_integer_dtypes(),
-        xpst.floating_dtypes(),
+        xps.scalar_dtypes(),
+        xps.boolean_dtypes(),
+        xps.integer_dtypes(),
+        xps.unsigned_integer_dtypes(),
+        xps.floating_dtypes(),
     ]))
-    array = data.draw(xpst.arrays(strat, ()))  # noqa
+    array = data.draw(xps.arrays(strat, ()))  # noqa
     # TODO check array.__array_namespace__()
 
 
@@ -83,23 +83,23 @@ def test_can_draw_arrays_from_scalar_strategies(data):
     st.lists(st.sampled_from(DTYPE_NAMES["all"]), min_size=1, unique=True), st.data()
 )
 def test_can_draw_arrays_from_scalar_name_strategies(names, data):
-    array = data.draw(xpst.arrays(st.sampled_from(names), ()))  # noqa
+    array = data.draw(xps.arrays(st.sampled_from(names), ()))  # noqa
     # TODO check array.__array_namespace__()
 
 
-@given(xpst.arrays(xp.bool, xpst.array_shapes()))
+@given(xps.arrays(xp.bool, xps.array_shapes()))
 def test_can_draw_arrays_from_shapes_strategy(array):
     assert array.dtype == xp.bool
     # TODO check array.__array_namespace__()
 
 
-@given(xpst.arrays(xp.bool, st.integers(0, 100)))
+@given(xps.arrays(xp.bool, st.integers(0, 100)))
 def test_can_draw_arrays_from_integers_strategy_as_shape(array):
     assert array.dtype == xp.bool
     # TODO check array.__array_namespace__()
 
 
-@given(xpst.arrays(xp.bool, ()))
+@given(xps.arrays(xp.bool, ()))
 def test_empty_dimensions_are_arrays(array):
     # TODO check array.__array_namespace__()
     assert array.dtype == xp.bool
@@ -107,25 +107,25 @@ def test_empty_dimensions_are_arrays(array):
     assert array.shape == ()
 
 
-@given(xpst.arrays(xp.bool, (1, 0, 1)))
+@given(xps.arrays(xp.bool, (1, 0, 1)))
 def test_can_handle_zero_dimensions(array):
     assert array.dtype == xp.bool
     assert array.shape == (1, 0, 1)
 
 
-@given(xpst.arrays(xp.uint32, (5, 5)))
+@given(xps.arrays(xp.uint32, (5, 5)))
 def test_generates_unsigned_ints(array):
     assert xp.all(array >= 0)
 
 
 def test_generates_and_minimizes():
-    strat = xpst.arrays(xp.float32, (2, 2))
+    strat = xps.arrays(xp.float32, (2, 2))
     assert xp.all(minimal(strat) == 0)
 
 
 def test_minimise_array_strategy():
     smallest = minimal(
-        xpst.arrays(xpst.scalar_dtypes(), xpst.array_shapes(max_dims=3, max_side=3)),
+        xps.arrays(xps.scalar_dtypes(), xps.array_shapes(max_dims=3, max_side=3)),
     )
     assert smallest.dtype == xp.bool
     assert not xp.any(smallest)
@@ -133,7 +133,7 @@ def test_minimise_array_strategy():
 
 def test_can_minimize_large_arrays():
     array = minimal(
-        xpst.arrays(xp.uint32, 100),
+        xps.arrays(xp.uint32, 100),
         lambda x: xp.any(x) and not xp.all(x),
         timeout_after=60,
     )
@@ -148,7 +148,7 @@ def test_can_minimize_large_arrays():
         assert nonzero_count in (1, array.size - 1)
 
 
-@given(xpst.arrays(xp.int8, st.integers(0, 20), unique=True))
+@given(xps.arrays(xp.int8, st.integers(0, 20), unique=True))
 def test_array_values_are_unique(array):
     # xp.unique() is optional for Array API libraries
     if hasattr(xp, "unique"):
@@ -157,19 +157,19 @@ def test_array_values_are_unique(array):
 
 
 def test_cannot_generate_unique_array_of_too_many_elements():
-    strat = xpst.arrays(xp.int8, 10, elements=st.integers(0, 5), unique=True)
+    strat = xps.arrays(xp.int8, 10, elements=st.integers(0, 5), unique=True)
     with raises(Unsatisfiable):
         strat.example()
 
 
 def test_cannot_fill_with_non_castable_value():
-    strat = xpst.arrays(xp.int8, 10, fill=st.just("not a castable value"))
+    strat = xps.arrays(xp.int8, 10, fill=st.just("not a castable value"))
     with raises(InvalidArgument):
         strat.example()
 
 
 @given(
-    xpst.arrays(
+    xps.arrays(
         dtype=xp.float32,
         shape=st.integers(0, 20),
         elements=st.just(0.0),
@@ -186,7 +186,7 @@ def test_array_values_are_unique_high_collision(array):
     assert nzeros <= 1
 
 
-@given(xpst.arrays(xp.int8, (4,), elements=st.integers(0, 3), unique=True))
+@given(xps.arrays(xp.int8, (4,), elements=st.integers(0, 3), unique=True))
 def test_generates_all_values_for_unique_array(array):
     # xp.unique() is optional for Array API libraries
     if hasattr(xp, "unique"):
@@ -196,7 +196,7 @@ def test_generates_all_values_for_unique_array(array):
 
 def test_may_fill_with_nan_when_unique_is_set():
     find_any(
-        xpst.arrays(
+        xps.arrays(
             dtype=xp.float32,
             shape=10,
             elements=st.floats(allow_nan=False),
@@ -209,7 +209,7 @@ def test_may_fill_with_nan_when_unique_is_set():
 
 @fails_with(InvalidArgument)
 @given(
-    xpst.arrays(
+    xps.arrays(
         dtype=xp.float32,
         shape=10,
         elements=st.floats(allow_nan=False),
@@ -231,7 +231,7 @@ def test_may_not_fill_with_non_nan_when_unique_is_set(_):
 @fails_with(InvalidArgument)
 @given(st.data())
 def test_may_not_use_overflowing_integers(kwargs, data):
-    strat = xpst.arrays(dtype=xp.int8, shape=1, **kwargs)
+    strat = xps.arrays(dtype=xp.int8, shape=1, **kwargs)
     data.draw(strat)
 
 
@@ -250,12 +250,12 @@ def test_may_not_use_unrepresentable_elements(fill, dtype, strat, data):
         kw = {"elements": st.nothing(), "fill": strat}
     else:
         kw = {"elements": strat}
-    strat = xpst.arrays(dtype=dtype, shape=1, **kw)
+    strat = xps.arrays(dtype=dtype, shape=1, **kw)
     data.draw(strat)
 
 
 @given(
-    xpst.arrays(dtype=xp.float32, shape=10, elements={"min_value": 0, "max_value": 1})
+    xps.arrays(dtype=xp.float32, shape=10, elements={"min_value": 0, "max_value": 1})
 )
 def test_floats_can_be_constrained_at_low_width(array):
     assert xp.all(array >= 0)
@@ -263,7 +263,7 @@ def test_floats_can_be_constrained_at_low_width(array):
 
 
 @given(
-    xpst.arrays(
+    xps.arrays(
         dtype=xp.float32,
         shape=10,
         elements={

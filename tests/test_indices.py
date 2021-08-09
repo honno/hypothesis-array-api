@@ -24,7 +24,7 @@ from .common.debug import find_any
 from .xputils import create_array_module
 
 xp = create_array_module()
-xpst = get_strategies_namespace(xp)
+xps = get_strategies_namespace(xp)
 
 
 @mark.parametrize(
@@ -36,19 +36,19 @@ xpst = get_strategies_namespace(xp)
     ids=["Ellipsis in ix", "Ellipsis not in ix"]
 )
 def test_indices_options(condition):
-    indexers = xpst.array_shapes(min_dims=0, max_dims=32).flatmap(
-        lambda shape: xpst.indices(shape, allow_none=True)
+    indexers = xps.array_shapes(min_dims=0, max_dims=32).flatmap(
+        lambda shape: xps.indices(shape, allow_none=True)
     )
     find_any(indexers, condition)
 
 
 def test_indices_can_generate_empty_tuple():
-    find_any(xpst.indices(shape=(0, 0), allow_ellipsis=True), lambda ix: ix == ())
+    find_any(xps.indices(shape=(0, 0), allow_ellipsis=True), lambda ix: ix == ())
 
 
 def test_indices_can_generate_non_tuples():
     find_any(
-        xpst.indices(shape=(0, 0), allow_ellipsis=True),
+        xps.indices(shape=(0, 0), allow_ellipsis=True),
         lambda ix: not isinstance(ix, tuple),
     )
 
@@ -56,13 +56,13 @@ def test_indices_can_generate_non_tuples():
 def test_indices_can_generate_long_ellipsis():
     # Runs of slice(None) - such as [0,:,:,:,0] - can be replaced by e.g. [0,...,0]
     find_any(
-        xpst.indices(shape=(1, 0, 0, 0, 1), allow_ellipsis=True),
+        xps.indices(shape=(1, 0, 0, 0, 1), allow_ellipsis=True),
         lambda ix: len(ix) == 3 and ix[1] == Ellipsis,
     )
 
 
 @given(
-    xpst.indices(shape=(0, 0, 0, 0, 0)).filter(
+    xps.indices(shape=(0, 0, 0, 0, 0)).filter(
         lambda idx: isinstance(idx, tuple) and Ellipsis in idx
     )
 )
@@ -72,8 +72,8 @@ def test_indices_replaces_whole_axis_slices_with_ellipsis(idx):
 
 
 @given(
-    shape=xpst.array_shapes(min_dims=0, max_side=4)
-    | xpst.array_shapes(min_dims=0, min_side=0, max_side=10),
+    shape=xps.array_shapes(min_dims=0, max_side=4)
+    | xps.array_shapes(min_dims=0, min_side=0, max_side=10),
     min_dims=st.integers(0, 5),
     allow_ellipsis=st.booleans(),
     allow_none=st.booleans(),
@@ -84,7 +84,7 @@ def test_indices_generate_valid_indexers(
 ):
     max_dims = data.draw(st.none() | st.integers(min_dims, 32), label="max_dims")
     indexer = data.draw(
-        xpst.indices(
+        xps.indices(
             shape,
             min_dims=min_dims,
             max_dims=max_dims,

@@ -22,51 +22,51 @@ from .common.debug import minimal
 from .xputils import DTYPE_NAMES, create_array_module
 
 xp = create_array_module()
-xpst = get_strategies_namespace(xp)
+xps = get_strategies_namespace(xp)
 
 
-@given(xpst.scalar_dtypes())
+@given(xps.scalar_dtypes())
 def test_can_generate_scalar_dtypes(dtype):
     assert dtype in (getattr(xp, name) for name in DTYPE_NAMES["all"])
 
 
-@given(xpst.boolean_dtypes())
+@given(xps.boolean_dtypes())
 def test_can_generate_boolean_dtypes(dtype):
     assert dtype == xp.bool
 
 
-@given(xpst.integer_dtypes())
+@given(xps.integer_dtypes())
 def test_can_generate_integer_dtypes(dtype):
     assert dtype in (getattr(xp, name) for name in DTYPE_NAMES["ints"])
 
 
-@given(xpst.unsigned_integer_dtypes())
+@given(xps.unsigned_integer_dtypes())
 def test_can_generate_unsigned_integer_dtypes(dtype):
     assert dtype in (getattr(xp, name) for name in DTYPE_NAMES["uints"])
 
 
-@given(xpst.floating_dtypes())
+@given(xps.floating_dtypes())
 def test_can_generate_floating_dtypes(dtype):
     assert dtype in (getattr(xp, name) for name in DTYPE_NAMES["floats"])
 
 
 def test_minimise_scalar_dtypes():
-    assert minimal(xpst.scalar_dtypes()) == xp.bool
+    assert minimal(xps.scalar_dtypes()) == xp.bool
 
 
 @mark.parametrize(
     "strat_func, sizes",
     [
-        (xpst.integer_dtypes, 8),
-        (xpst.unsigned_integer_dtypes, 8),
-        (xpst.floating_dtypes, 32),
+        (xps.integer_dtypes, 8),
+        (xps.unsigned_integer_dtypes, 8),
+        (xps.floating_dtypes, 32),
     ]
 )
 def test_can_specify_sizes_as_an_int(strat_func, sizes):
     strat_func(sizes=sizes)
 
 
-@given(xpst.array_shapes())
+@given(xps.array_shapes())
 def test_can_generate_array_shapes(shape):
     assert isinstance(shape, tuple)
     assert all(isinstance(i, int) for i in shape)

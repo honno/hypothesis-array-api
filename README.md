@@ -26,9 +26,9 @@ from numpy import array_api as xp
 from hypothesis import given
 from hypothesis_array import get_strategies_namespace
 
-xpst = get_strategies_namespace(xp)
+xps = get_strategies_namespace(xp)
 
-@given(xpst.arrays(dtype=xpst.scalar_strategies(), shape=xpst.array_shapes()))
+@given(xps.arrays(dtype=xps.scalar_strategies(), shape=xps.array_shapes()))
 def your_test(array):
     ...
 ```

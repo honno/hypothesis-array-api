@@ -22,10 +22,10 @@ from .common.debug import find_any, minimal
 from .xputils import create_array_module
 
 xp = create_array_module()
-xpst = get_strategies_namespace(xp)
+xps = get_strategies_namespace(xp)
 
 
-@given(xpst.arrays(xp.bool, (), fill=st.nothing()))
+@given(xps.arrays(xp.bool, (), fill=st.nothing()))
 def test_can_generate_0d_arrays_with_no_fill(array):
     assert array.dtype == xp.bool
     assert array.ndim == 0
@@ -40,7 +40,7 @@ def distinct_integers(draw):
     return i
 
 
-@given(xpst.arrays(xp.uint64, 10, elements=distinct_integers()))
+@given(xps.arrays(xp.uint64, 10, elements=distinct_integers()))
 def test_does_not_reuse_distinct_integers(array):
     # xp.unique() is optional for Array API libraries
     if hasattr(xp, "unique"):
@@ -54,7 +54,7 @@ def test_may_reuse_distinct_integers_if_asked():
             unique_values = xp.unique(array)
             return unique_values.size
         find_any(
-            xpst.arrays(
+            xps.arrays(
                 xp.uint64, 10, elements=distinct_integers(), fill=distinct_integers()
             ),
             lambda x: nunique(x) < len(x),
@@ -64,12 +64,12 @@ def test_may_reuse_distinct_integers_if_asked():
 
 
 def test_minimizes_to_fill():
-    smallest = minimal(xpst.arrays(xp.float32, 10, fill=st.just(3.0)))
+    smallest = minimal(xps.arrays(xp.float32, 10, fill=st.just(3.0)))
     assert xp.all(smallest == 3.0)
 
 
 @given(
-    xpst.arrays(
+    xps.arrays(
         dtype=xp.float32,
         elements=st.floats(width=32).filter(bool),
         shape=(3, 3, 3),
