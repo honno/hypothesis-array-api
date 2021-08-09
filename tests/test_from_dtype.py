@@ -20,9 +20,10 @@ from hypothesis import assume, given, settings
 from hypothesis import strategies as st
 from pytest import mark
 
-from hypothesis_array import get_strategies_namespace
+from hypothesis_array import (DTYPE_NAMES, SIGNED_INT_NAMES,
+                              UNSIGNED_INT_NAMES, get_strategies_namespace)
 
-from .xputils import DTYPE_NAMES, create_array_module
+from .xputils import create_array_module
 
 xp = create_array_module()
 xps = get_strategies_namespace(xp)
@@ -37,14 +38,14 @@ def test_strategies_for_standard_dtypes_have_reusable_values(dtype):
 def builtin_from_dtype_name(name: str) -> Type[Union[bool, int, float]]:
     if name == "bool":
         return bool
-    elif name in DTYPE_NAMES["ints"] or name in DTYPE_NAMES["uints"]:
+    elif name in SIGNED_INT_NAMES or name in UNSIGNED_INT_NAMES:
         return int
-    elif name in DTYPE_NAMES["floats"]:
+    elif name in DTYPE_NAMES:
         return float
     raise ValueError()
 
 
-@mark.parametrize("name", DTYPE_NAMES["all"])
+@mark.parametrize("name", DTYPE_NAMES)
 def test_produces_instances_from_dtype(name):
     builtin = builtin_from_dtype_name(name)
     dtype = getattr(xp, name)
@@ -56,7 +57,7 @@ def test_produces_instances_from_dtype(name):
     test_is_builtin()
 
 
-@mark.parametrize("name", DTYPE_NAMES["all"])
+@mark.parametrize("name", DTYPE_NAMES)
 def test_produces_instances_from_name(name):
     builtin = builtin_from_dtype_name(name)
 
@@ -67,7 +68,7 @@ def test_produces_instances_from_name(name):
     test_is_builtin()
 
 
-DTYPES = [getattr(xp, name) for name in DTYPE_NAMES["all"]]
+DTYPES = [getattr(xp, name) for name in DTYPE_NAMES]
 
 
 @given(xps.scalar_dtypes(), st.data())

@@ -16,10 +16,11 @@
 from hypothesis import given
 from pytest import mark
 
-from hypothesis_array import get_strategies_namespace
+from hypothesis_array import (DTYPE_NAMES, SIGNED_INT_NAMES,
+                              UNSIGNED_INT_NAMES, get_strategies_namespace)
 
 from .common.debug import minimal
-from .xputils import DTYPE_NAMES, create_array_module
+from .xputils import create_array_module
 
 xp = create_array_module()
 xps = get_strategies_namespace(xp)
@@ -27,7 +28,7 @@ xps = get_strategies_namespace(xp)
 
 @given(xps.scalar_dtypes())
 def test_can_generate_scalar_dtypes(dtype):
-    assert dtype in (getattr(xp, name) for name in DTYPE_NAMES["all"])
+    assert dtype in (getattr(xp, name) for name in DTYPE_NAMES)
 
 
 @given(xps.boolean_dtypes())
@@ -37,17 +38,17 @@ def test_can_generate_boolean_dtypes(dtype):
 
 @given(xps.integer_dtypes())
 def test_can_generate_integer_dtypes(dtype):
-    assert dtype in (getattr(xp, name) for name in DTYPE_NAMES["ints"])
+    assert dtype in (getattr(xp, name) for name in SIGNED_INT_NAMES)
 
 
 @given(xps.unsigned_integer_dtypes())
 def test_can_generate_unsigned_integer_dtypes(dtype):
-    assert dtype in (getattr(xp, name) for name in DTYPE_NAMES["uints"])
+    assert dtype in (getattr(xp, name) for name in UNSIGNED_INT_NAMES)
 
 
 @given(xps.floating_dtypes())
 def test_can_generate_floating_dtypes(dtype):
-    assert dtype in (getattr(xp, name) for name in DTYPE_NAMES["floats"])
+    assert dtype in (getattr(xp, name) for name in DTYPE_NAMES)
 
 
 def test_minimise_scalar_dtypes():

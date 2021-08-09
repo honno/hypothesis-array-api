@@ -65,12 +65,11 @@ class BroadcastableShapes(NamedTuple):
     result_shape: Shape
 
 
-DTYPE_NAMES = [
-    "bool",
-    "int8", "int16", "int32", "int64",
-    "uint8", "uint16", "uint32", "uint64",
-    "float32", "float64",
-]
+SIGNED_INT_NAMES = ["int8", "int16", "int32", "int64"]
+UNSIGNED_INT_NAMES = ["uint8", "uint16", "uint32", "uint64"]
+ALL_INT_NAMES = SIGNED_INT_NAMES + UNSIGNED_INT_NAMES
+FLOAT_NAMES = ["float32", "float64"]
+DTYPE_NAMES = ["bool"] + ALL_INT_NAMES + FLOAT_NAMES
 
 
 def partition_attributes_and_stubs(
@@ -94,8 +93,8 @@ def infer_xp_is_compliant(xp):
         array.__array_namespace__()
     except AttributeError:
         warn(
-            f"Could not determine whether module {xp.__name__}"
-            " is an Array API library",
+            f"Could not determine whether module {xp.__name__} "
+            "is an Array API library",
             HypothesisWarning,
         )
 
@@ -116,8 +115,8 @@ def check_xp_attributes(xp, attributes: List[str]):
 def warn_on_missing_dtypes(xp, stubs: List[str]):
     f_stubs = ", ".join(stubs)
     warn(
-        f"Array module {xp.__name__} does not have"
-        f" the following dtypes in its namespace: {f_stubs}.",
+        f"Array module {xp.__name__} does not have "
+        f"the following dtypes in its namespace: {f_stubs}.",
         HypothesisWarning,
     )
 
@@ -128,8 +127,31 @@ def order_check(name, floor, min_, max_):
     if min_ > max_:
         raise InvalidArgument(f"min_{name}={min_} is larger than max_{name}={max_}")
 
-# Note NumPy supports non-array scalars which hypothesis.extra.numpy.from_dtype
-# utilises, but this from_dtype() method returns just base strategies.
+
+def find_dtype_family(
+        xp, dtype: Type[DataType]
+) -> Tuple[Type[Union[bool, int, float]], List[str]]:
+    family_type = None
+    stubs = []
+
+    try:
+        bool_dtype = xp.bool
+        if dtype == bool_dtype:
+            family_type = bool
+    except AttributeError:
+        stubs.append("bool")
+
+    int_dtypes, int_stubs = partition_attributes_and_stubs(xp, ALL_INT_NAMES)
+    if dtype in int_dtypes:
+        family_type = int
+    stubs.extend(int_stubs)
+
+    float_dtypes, float_stubs = partition_attributes_and_stubs(xp, FLOAT_NAMES)
+    if dtype in float_dtypes:
+        family_type = float
+    stubs.extend(float_stubs)
+
+    return family_type, stubs
 
 
 def from_dtype(
@@ -146,6 +168,7 @@ def from_dtype(
     """Creates a strategy which can generate any castable value of the given
     Array API dtype."""
     infer_xp_is_compliant(xp)
+    check_xp_attributes(xp, ["iinfo", "finfo"])
 
     if isinstance(dtype, str):
         if dtype in DTYPE_NAMES:
@@ -153,24 +176,20 @@ def from_dtype(
                 dtype = getattr(xp, dtype)
             except AttributeError as e:
                 raise InvalidArgument(
-                    f"Array module {xp.__name__} does not have"
-                    f" dtype {dtype} in its namespace"
+                    f"Array module {xp.__name__} does not have "
+                    f"dtype {dtype} in its namespace"
                 ) from e
         else:
             f_valid_dtypes = ", ".join(DTYPE_NAMES)
             raise InvalidArgument(
-                f"{dtype} is not a valid Array API data type"
-                f" (pick from: {f_valid_dtypes})"
+                f"{dtype} is not a valid Array API data type "
+                f"(pick from: {f_valid_dtypes})"
             )
 
-    stubs = []
+    family_type, stubs = find_dtype_family(xp, dtype)
 
-    try:
-        bool_dtype = xp.bool
-        if dtype == bool_dtype:
-            return st.booleans()
-    except AttributeError:
-        stubs.append("bool")
+    if family_type is bool:
+        return st.booleans()
 
     def minmax_values_kw(info):
         kw = {}
@@ -180,8 +199,8 @@ def from_dtype(
         else:
             if min_value < info.min:
                 raise InvalidArgument(
-                    f"dtype {dtype} requires min_value={min_value}"
-                    f" to be at least {info.min}"
+                    f"dtype {dtype} requires min_value={min_value} "
+                    f"to be at least {info.min}"
                 )
             kw["min_value"] = min_value
 
@@ -190,27 +209,19 @@ def from_dtype(
         else:
             if max_value > info.max:
                 raise InvalidArgument(
-                    f"dtype {dtype} requires max_value={max_value}"
-                    f" to be at most {info.max}"
+                    f"dtype {dtype} requires max_value={max_value} "
+                    f"to be at most {info.max}"
                 )
             kw["max_value"] = max_value
 
         return kw
 
-    int_dtypes, int_stubs = partition_attributes_and_stubs(
-        xp, ["int8", "int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64"]
-    )
-    if dtype in int_dtypes:
-        check_xp_attributes(xp, ["iinfo"])
+    if family_type is int:
         iinfo = xp.iinfo(dtype)
         kw = minmax_values_kw(iinfo)
         return st.integers(**kw)
 
-    float_dtypes, float_stubs = partition_attributes_and_stubs(
-        xp, ["float32", "float64"]
-    )
-    if dtype in float_dtypes:
-        check_xp_attributes(xp, ["finfo"])
+    if family_type is float:
         finfo = xp.finfo(dtype)
 
         kw = minmax_values_kw(finfo)
@@ -225,8 +236,6 @@ def from_dtype(
 
         return st.floats(width=finfo.bits, **kw)
 
-    stubs.extend(int_stubs)
-    stubs.extend(float_stubs)
     if len(stubs) > 0:
         warn_on_missing_dtypes(xp, stubs)
 
@@ -243,29 +252,56 @@ class ArrayStrategy(st.SearchStrategy):
         self.unique = unique
         self.array_size = math.prod(shape)
 
-    def check_results_set(self, result, idx, val):
-        if val == val and self.xp.all(result[idx] != val):
-            raise InvalidArgument(
-                f"Generated array element {repr(val)} from"
-                f" strategy {self.elements_strategy}"
-                f" cannot be represented as dtype {self.dtype}."
-                f" Array module {self.xp.__name__} instead"
-                f" represents the element as {result[idx]}.\n"
-                "Consider using a more precise elements strategy,"
-                " for example passing the width argument to floats()."
-            )
+        family_type, stubs = find_dtype_family(self.xp, self.dtype)
+        if family_type is bool:
+            def inbounds(x: bool) -> bool:
+                return True
+        elif family_type is int:
+            iinfo = self.xp.iinfo(self.dtype)
 
-    def set_value(self, result, i, val):
+            def inbounds(x: int) -> bool:
+                return iinfo.min <= x <= iinfo.max
+        elif family_type is float:
+            finfo = self.xp.finfo(self.dtype)
+
+            def inbounds(x: float) -> float:
+                return finfo.min <= x <= finfo.max
+        self.family_type = family_type
+        self.inbounds_check = inbounds  # TODO cache this
+
+    def set_value(self, result, i, val, strategy=None):
+        strategy = strategy or self.elements_strategy
         try:
             result[i] = val
         except TypeError as e:
-            # TODO check type promotion rules first
             raise InvalidArgument(
-                f"Could not add generated array element {repr(val)}"
+                f"Could not add generated array element {val!r} "
                 f"of dtype {type(val)} to array of dtype {result.dtype}."
             ) from e
+        self.check_set_value(val, result[i])
 
-        self.check_results_set(result, i, val)
+    def check_set_value(self, val, val_0d, strategy=None):
+        strategy = strategy or self.elements_strategy
+
+        if val == val and val_0d != val:
+            raise InvalidArgument(
+                f"Generated array element {val!r} from strategy {strategy} "
+                f"cannot be represented as dtype {self.dtype}. "
+                f"Array module {self.xp.__name__} instead "
+                f"represents the element as {val_0d!r}. "
+                "Consider using a more precise elements strategy, "
+                "for example passing the width argument to floats()."
+            )
+
+        if self.xp.isfinite(val_0d):
+            builtin_val = self.family_type(val)
+            if not self.inbounds_check(builtin_val):
+                raise InvalidArgument(
+                    f"Generated array element {val!r} from strategy {strategy} "
+                    f"is out of the bounds for {self.dtype}. "
+                    f"Array module {self.xp.__name__} instead "
+                    f"represents the element as {builtin_val}."
+                )
 
     def do_draw(self, data):
         if 0 in self.shape:
@@ -298,17 +334,18 @@ class ArrayStrategy(st.SearchStrategy):
             fill_val = data.draw(self.fill)
             try:
                 result = self.xp.full(self.array_size, fill_val, dtype=self.dtype)
-            except ValueError as e:
+            except Exception as e:
                 raise InvalidArgument(
-                    f"Could not create full array of dtype {self.dtype}"
-                    f" with fill value {repr(fill_val)}"
+                    f"Could not create full array of dtype {self.dtype} "
+                    f"with fill value {fill_val!r}"
                 ) from e
-            self.check_results_set(result, slice(None, None), fill_val)
+            sample = result[0]
+            self.check_set_value(fill_val, sample)
             if self.unique and not self.xp.all(self.xp.isnan(result)):
                 raise InvalidArgument(
-                    f"Array module {self.xp.__name__} did not recognise"
-                    f" fill value as NaN - instead got {repr(result[0])}."
-                    " Cannot fill unique array with non-NaN values."
+                    f"Array module {self.xp.__name__} did not recognise fill "
+                    f"value {fill_val!r} as NaN - instead got {sample!r}. "
+                    "Cannot fill unique array with non-NaN values."
                 )
 
             elements = cu.many(
@@ -355,7 +392,8 @@ def arrays(
     """Returns a strategy for generating Array API arrays."""
 
     infer_xp_is_compliant(xp)
-    check_xp_attributes(xp, ["empty", "full", "all", "isnan", "bool", "reshape"])
+    check_xp_attributes(xp, ["empty", "full", "all", "isnan",
+                        "bool", "reshape", "iinfo", "finfo", "isfinite"])
 
     if isinstance(dtype, st.SearchStrategy):
         return dtype.flatmap(
@@ -379,6 +417,9 @@ def arrays(
     elif isinstance(elements, Mapping):
         elements = from_dtype(xp, dtype, **elements)
     check_strategy(elements, "elements")
+
+    if isinstance(dtype, str):
+        dtype = getattr(xp, dtype)
 
     if fill is None:
         if unique or not elements.has_reusable_values:
@@ -421,8 +462,8 @@ def check_dtypes(xp, dtypes: List[Type[DataType]], stubs: List[str]):
     if len(dtypes) == 0:
         f_stubs = ", ".join(stubs)
         raise InvalidArgument(
-            f"Array module {xp.__name__} does not have"
-            f" the following required dtypes in its namespace: {f_stubs}"
+            f"Array module {xp.__name__} does not have "
+            f"the following required dtypes in its namespace: {f_stubs}"
         )
     elif len(stubs) > 0:
         warn_on_missing_dtypes(xp, stubs)
@@ -445,8 +486,8 @@ def boolean_dtypes(xp) -> st.SearchStrategy[Type[Boolean]]:
         return st.just(xp.bool)
     except AttributeError:
         raise InvalidArgument(
-            f"Array module {xp.__name__} does not have"
-            f" a bool dtype in its namespace"
+            f"Array module {xp.__name__} does not have "
+            f"a bool dtype in its namespace"
         ) from None
 
 
@@ -460,8 +501,8 @@ def check_valid_sizes(category: str, sizes: Sequence[int], valid_sizes: Sequence
         f_valid_sizes = ", ".join(str(s) for s in valid_sizes)
         f_invalid_sizes = ", ".join(str(s) for s in invalid_sizes)
         raise InvalidArgument(
-            f"The following sizes are not valid for {category} dtypes:"
-            f" {f_invalid_sizes} (valid sizes: {f_valid_sizes})"
+            f"The following sizes are not valid for {category} dtypes: "
+            f"{f_invalid_sizes} (valid sizes: {f_valid_sizes})"
         )
 
 
@@ -671,8 +712,8 @@ def broadcastable_shapes(
     # check for unsatisfiable min_side
     if not all(min_side <= s for s in shape[::-1][:dims] if s != 1):
         raise InvalidArgument(
-            f"Given shape={shape}, there are no broadcast-compatible"
-            f" shapes that satisfy: {bound_name}={dims} and min_side={min_side}"
+            f"Given shape={shape}, there are no broadcast-compatible "
+            f"shapes that satisfy: {bound_name}={dims} and min_side={min_side}"
         )
 
     # check for unsatisfiable [min_side, max_side]
@@ -680,9 +721,9 @@ def broadcastable_shapes(
         min_side <= 1 <= max_side or all(s <= max_side for s in shape[::-1][:dims])
     ):
         raise InvalidArgument(
-            f"Given base_shape={shape}, there are no broadcast-compatible"
-            f" shapes that satisfy all of {bound_name}={dims},"
-            f" min_side={min_side}, and max_side={max_side}"
+            f"Given base_shape={shape}, there are no broadcast-compatible "
+            f"shapes that satisfy all of {bound_name}={dims}, "
+            f"min_side={min_side}, and max_side={max_side}"
         )
 
     if not strict_check:
@@ -748,8 +789,8 @@ def mutually_broadcastable_shapes(
     # check for unsatisfiable min_side
     if not all(min_side <= s for s in base_shape[::-1][:dims] if s != 1):
         raise InvalidArgument(
-            f"Given base_shape={base_shape}, there are no broadcast-compatible"
-            f" shapes that satisfy: {bound_name}={dims} and min_side={min_side}"
+            f"Given base_shape={base_shape}, there are no broadcast-compatible "
+            f"shapes that satisfy: {bound_name}={dims} and min_side={min_side}"
         )
 
     # check for unsatisfiable [min_side, max_side]
@@ -757,9 +798,9 @@ def mutually_broadcastable_shapes(
         min_side <= 1 <= max_side or all(s <= max_side for s in base_shape[::-1][:dims])
     ):
         raise InvalidArgument(
-            f"Given base_shape={base_shape}, there are no broadcast-compatible"
-            f" shapes that satisfy all of {bound_name}={dims},"
-            f" min_side={min_side}, and max_side={max_side}"
+            f"Given base_shape={base_shape}, there are no broadcast-compatible "
+            f"shapes that satisfy all of {bound_name}={dims}, "
+            f"min_side={min_side}, and max_side={max_side}"
         )
 
     if not strict_check:
@@ -852,7 +893,7 @@ def indices(
     order_check("dims", 0, min_dims, max_dims)
     if not all(isinstance(x, int) and x >= 0 for x in shape):
         raise InvalidArgument(
-            f"shape={repr(shape)}, but all dimensions must be of integer size >= 0"
+            f"shape={shape!r}, but all dimensions must be of integer size >= 0"
         )
     return IndexStrategy(
         shape,

@@ -19,11 +19,11 @@ from hypothesis import strategies as st
 from hypothesis.errors import InvalidArgument, Unsatisfiable
 from pytest import mark, raises
 
-from hypothesis_array import get_strategies_namespace
+from hypothesis_array import DTYPE_NAMES, get_strategies_namespace
 
 from .common.debug import find_any, minimal
 from .common.utils import fails_with
-from .xputils import DTYPE_NAMES, create_array_module
+from .xputils import create_array_module
 
 xp = create_array_module()
 xps = get_strategies_namespace(xp)
@@ -38,7 +38,7 @@ def test_can_generate_arrays_from_scalars(data):
     # TODO check array.__array_namespace__()
 
 
-@given(st.sampled_from(DTYPE_NAMES["all"]), st.data())
+@given(st.sampled_from(DTYPE_NAMES), st.data())
 def test_can_generate_arrays_from_scalar_names(name, data):
     array = data.draw(xps.arrays(name, ()))
     assert array.dtype == getattr(xp, name)
@@ -80,7 +80,7 @@ def test_can_draw_arrays_from_scalar_strategies(data):
 
 
 @given(
-    st.lists(st.sampled_from(DTYPE_NAMES["all"]), min_size=1, unique=True), st.data()
+    st.lists(st.sampled_from(DTYPE_NAMES), min_size=1, unique=True), st.data()
 )
 def test_can_draw_arrays_from_scalar_name_strategies(names, data):
     array = data.draw(xps.arrays(st.sampled_from(names), ()))  # noqa
