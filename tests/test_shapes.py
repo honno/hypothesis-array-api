@@ -33,6 +33,12 @@ ANY_SHAPE = xps.array_shapes(min_dims=0, max_dims=32, min_side=0, max_side=32)
 ANY_NONZERO_SHAPE = xps.array_shapes(min_dims=0, max_dims=32, min_side=1, max_side=32)
 
 
+@given(xps.array_shapes())
+def test_can_generate_array_shapes(shape):
+    assert isinstance(shape, tuple)
+    assert all(isinstance(i, int) for i in shape)
+
+
 @settings(deadline=None, max_examples=10)
 @given(st.integers(0, 10), st.integers(0, 9), st.integers(0), st.integers(0))
 def test_minimise_array_shapes(min_dims, dim_range, min_side, side_range):

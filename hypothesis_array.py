@@ -34,6 +34,7 @@ __all__ = [
     "array_shapes",
     "scalar_dtypes",
     "boolean_dtypes",
+    "numeric_dtypes",
     "integer_dtypes",
     "unsigned_integer_dtypes",
     "floating_dtypes",
@@ -48,7 +49,8 @@ Boolean = TypeVar("Boolean")
 SignedInteger = TypeVar("SignedInteger")
 UnsignedInteger = TypeVar("UnsignedInteger")
 Float = TypeVar("Float")
-DataType = Union[Boolean, SignedInteger, UnsignedInteger, Float]
+Numeric = Union[SignedInteger, UnsignedInteger, Float]
+DataType = Union[Boolean, Numeric]
 Array = TypeVar("Array")
 Shape = Tuple[int, ...]
 BasicIndex = Tuple[Union[int, slice, None, "ellipsis"], ...]  # noqa: F821
@@ -63,7 +65,8 @@ INT_NAMES = ["int8", "int16", "int32", "int64"]
 UINT_NAMES = ["uint8", "uint16", "uint32", "uint64"]
 ALL_INT_NAMES = INT_NAMES + UINT_NAMES
 FLOAT_NAMES = ["float32", "float64"]
-DTYPE_NAMES = ["bool"] + ALL_INT_NAMES + FLOAT_NAMES
+NUMERIC_NAMES = ALL_INT_NAMES + FLOAT_NAMES
+DTYPE_NAMES = ["bool"] + NUMERIC_NAMES
 
 
 def partition_attributes_and_stubs(
@@ -489,6 +492,14 @@ def boolean_dtypes(xp) -> st.SearchStrategy[Type[Boolean]]:
             f"Array module {xp.__name__} does not have "
             f"a bool dtype in its namespace"
         ) from None
+
+
+def numeric_dtypes(xp) -> st.SearchStrategy[Type[Numeric]]:
+    """Return a strategy for all numeric dtype objects."""
+    infer_xp_is_compliant(xp)
+    dtypes, stubs = partition_attributes_and_stubs(xp, NUMERIC_NAMES)
+    check_dtypes(xp, dtypes, stubs)
+    return st.sampled_from(dtypes)
 
 
 def check_valid_sizes(category: str, sizes: Sequence[int], valid_sizes: Sequence[int]):
@@ -974,6 +985,9 @@ def get_strategies_namespace(xp) -> SimpleNamespace:
         ),
         boolean_dtypes=update_wrapper(
             lambda *a, **kw: boolean_dtypes(xp, *a, **kw), boolean_dtypes
+        ),
+        numeric_dtypes=update_wrapper(
+            lambda *a, **kw: numeric_dtypes(xp, *a, **kw), numeric_dtypes
         ),
         integer_dtypes=update_wrapper(
             lambda *a, **kw: integer_dtypes(xp, *a, **kw), integer_dtypes

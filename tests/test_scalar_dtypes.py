@@ -16,8 +16,8 @@
 from hypothesis import given
 from pytest import mark
 
-from hypothesis_array import (DTYPE_NAMES, INT_NAMES, UINT_NAMES,
-                              get_strategies_namespace)
+from hypothesis_array import (DTYPE_NAMES, INT_NAMES, NUMERIC_NAMES,
+                              UINT_NAMES, get_strategies_namespace)
 
 from .common.debug import minimal
 from .xputils import create_array_module
@@ -34,6 +34,11 @@ def test_can_generate_scalar_dtypes(dtype):
 @given(xps.boolean_dtypes())
 def test_can_generate_boolean_dtypes(dtype):
     assert dtype == xp.bool
+
+
+@given(xps.numeric_dtypes())
+def test_can_generate_numeric_dtypes(dtype):
+    assert dtype in (getattr(xp, name) for name in NUMERIC_NAMES)
 
 
 @given(xps.integer_dtypes())
@@ -65,9 +70,3 @@ def test_minimise_scalar_dtypes():
 )
 def test_can_specify_sizes_as_an_int(strat_func, sizes):
     strat_func(sizes=sizes)
-
-
-@given(xps.array_shapes())
-def test_can_generate_array_shapes(shape):
-    assert isinstance(shape, tuple)
-    assert all(isinstance(i, int) for i in shape)
