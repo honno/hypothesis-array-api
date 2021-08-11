@@ -30,6 +30,7 @@ author = "Matthew Barber"
 extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.extlinks",
+    "sphinx.ext.intersphinx",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -60,6 +61,10 @@ collapse_navigation = True
 # -- Custom ------------------------------------------------------------------
 autodoc_member_order = "bysource"
 autodoc_typehints = "none"
+
+intersphinx_mapping = {
+    "python": ("https://docs.python.org/3/", None),
+}
 
 extlinks = {
     "array-ref": ("https://data-apis.org/array-api/latest/API_specification/%s", ""),

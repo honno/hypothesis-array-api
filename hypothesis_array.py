@@ -29,9 +29,9 @@ from hypothesis.strategies._internal.strategies import check_strategy
 
 __all__ = [
     "get_strategies_namespace",
+    "from_dtype",
     "arrays",
     "array_shapes",
-    "from_dtype",
     "scalar_dtypes",
     "boolean_dtypes",
     "integer_dtypes",
@@ -176,8 +176,19 @@ def from_dtype(
     exclude_min: Optional[bool] = None,
     exclude_max: Optional[bool] = None,
 ) -> st.SearchStrategy[Union[bool, int, float]]:
-    """Creates a strategy which can generate any castable value of the given
-    Array API dtype."""
+    """Creates a strategy which can generate any value of the given dtype.
+
+    Values generated are of the Python scalar which is
+    :array-ref:`promotable <type_promotion.html>` to ``dtype``, where the values
+    will never exceed its bounds.
+
+    * ``dtype`` may be a dtype object or the string name of a
+      :array-ref:`valid dtype <data_types.html>`.
+
+    Compatible ``**kwargs`` are passed to the inferred strategy function for
+    integers and floats.  This allows you to customise the min and max values,
+    and exclude non-finite numbers.
+    """
     infer_xp_is_compliant(xp)
     check_xp_attributes(xp, ["iinfo", "finfo"])
 
@@ -355,7 +366,27 @@ def arrays(
     fill: Optional[st.SearchStrategy[Any]] = None,
     unique: bool = False,
 ) -> st.SearchStrategy[Array]:
-    """Returns a strategy for generating Array API arrays."""
+    """Returns a strategy for generating arrays.
+
+    * ``dtype`` may be a :array-ref:`valid dtype <data_types.html>` object or
+      name, or a strategy that generates such values.
+    * ``shape`` may be an integer >= 0, a tuple of such integers, or a strategy
+      that generates such values.
+    * ``elements`` is a strategy for generating values to put in the array. If
+      ``None`` then a suitable value will be inferred based on the dtype, which
+      may give any legal value (including e.g. NaN for floats). If a mapping,
+      it will be passed as ``**kwargs`` to ``from_dtype()`` when inferring based
+      on the dtype.
+    * ``fill`` is a strategy that may be used to generate a single background
+      value for the array. If ``None``, a suitable default will be inferred
+      based on the other arguments. If set to
+      :func:`~hypothesis.strategies.nothing` then filling behaviour will be
+      disabled entirely and every element will be generated independently.
+    * ``unique`` specifies if the elements of the array should all be distinct
+      from one another. Note that in this case multiple NaN values may still be
+      allowed. If fill is also set, the only valid values for fill to return are
+      NaN values.
+    """
 
     infer_xp_is_compliant(xp)
     check_xp_attributes(xp, ["empty", "full", "all", "isnan", "isfinite", "reshape"])
@@ -402,7 +433,15 @@ def array_shapes(
     min_side: int = 1,
     max_side: Optional[int] = None,
 ) -> st.SearchStrategy[Shape]:
-    """Return a strategy for array shapes (tuples of int >= 1)."""
+    """Return a strategy for array shapes (tuples of int >= 1).
+
+    * ``min_dims`` is the smallest length that the generated shape can possess.
+    * ``max_dims`` is the largest length that the generated shape can possess,
+      defaulting to ``min_dims + 2``.
+    * ``min_side`` is the smallest size that a dimension can possess.
+    * ``max_side`` is the largest size that a dimension can possess,
+      defaulting to ``min_side + 5``.
+    """
     check_type(int, min_dims, "min_dims")
     check_type(int, min_side, "min_side")
 
@@ -434,18 +473,15 @@ def check_dtypes(xp, dtypes: List[Type[DataType]], stubs: List[str]):
 
 
 def scalar_dtypes(xp) -> st.SearchStrategy[Type[DataType]]:
-    """Return a strategy for all Array API dtypes."""
+    """Return a strategy for all :array-ref:`valid dtype <data_types.html>` objects."""
     infer_xp_is_compliant(xp)
-
     dtypes, stubs = partition_attributes_and_stubs(xp, DTYPE_NAMES)
     check_dtypes(xp, dtypes, stubs)
-
     return st.sampled_from(dtypes)
 
 
 def boolean_dtypes(xp) -> st.SearchStrategy[Type[Boolean]]:
     infer_xp_is_compliant(xp)
-
     try:
         return st.just(xp.bool)
     except AttributeError:
@@ -460,7 +496,6 @@ def check_valid_sizes(category: str, sizes: Sequence[int], valid_sizes: Sequence
     for size in sizes:
         if size not in valid_sizes:
             invalid_sizes.append(size)
-
     if len(invalid_sizes) > 0:
         f_valid_sizes = ", ".join(str(s) for s in valid_sizes)
         f_invalid_sizes = ", ".join(str(s) for s in invalid_sizes)
@@ -478,25 +513,30 @@ def numeric_dtype_names(base_name: str, sizes: Sequence[int]):
 def integer_dtypes(
     xp, *, sizes: Union[int, Sequence[int]] = (8, 16, 32, 64)
 ) -> st.SearchStrategy[Type[SignedInteger]]:
-    """Return a strategy for signed integer dtypes in the Array API."""
-    infer_xp_is_compliant(xp)
+    """Return a strategy for signed integer dtype objects.
 
+    ``sizes`` contains the signed integer sizes in bits, defaulting to
+    ``(8, 16, 32, 64)`` which covers all valid sizes.
+    """
+    infer_xp_is_compliant(xp)
     if isinstance(sizes, int):
         sizes = (sizes,)
     check_valid_sizes("int", sizes, (8, 16, 32, 64))
-
     dtypes, stubs = partition_attributes_and_stubs(
         xp, numeric_dtype_names("int", sizes)
     )
     check_dtypes(xp, dtypes, stubs)
-
     return st.sampled_from(dtypes)
 
 
 def unsigned_integer_dtypes(
     xp, *, sizes: Union[int, Sequence[int]] = (8, 16, 32, 64)
 ) -> st.SearchStrategy[Type[UnsignedInteger]]:
-    """Return a strategy for unsigned integer dtypes in the Array API."""
+    """Return a strategy for unsigned integer dtype objects.
+
+    ``sizes`` contains the unsigned integer sizes in bits, defaulting to
+    ``(8, 16, 32, 64)`` which covers all valid sizes.
+    """
     infer_xp_is_compliant(xp)
 
     if isinstance(sizes, int):
@@ -514,18 +554,20 @@ def unsigned_integer_dtypes(
 def floating_dtypes(
     xp, *, sizes: Union[int, Sequence[int]] = (32, 64)
 ) -> st.SearchStrategy[Type[Float]]:
-    """Return a strategy for floating dtypes in the Array API."""
-    infer_xp_is_compliant(xp)
+    """Return a strategy for floating-point dtype objects.
 
+    ``sizes`` contains the floating-point sizes in bits, defaulting to
+    ``(32, 64)`` which covers the two valid sizes.
+    """
+
+    infer_xp_is_compliant(xp)
     if isinstance(sizes, int):
         sizes = (sizes,)
     check_valid_sizes("int", sizes, (32, 64))
-
     dtypes, stubs = partition_attributes_and_stubs(
         xp, numeric_dtype_names("float", sizes)
     )
     check_dtypes(xp, dtypes, stubs)
-
     return st.sampled_from(dtypes)
 
 
@@ -535,20 +577,22 @@ def valid_tuple_axes(
     min_size: int = 0,
     max_size: Optional[int] = None,
 ) -> st.SearchStrategy[Shape]:
-    """Return a strategy for axes."""
+    """Return a strategy generating permissable tuple-values for the ``axis``
+    argument in many Array API methods, given the specified dimensionality.
+
+    All tuples will have a length >= ``min_size`` and <= ``max_size``. The default
+    value for ``max_size`` is ``ndim``.
+    """
     if max_size is None:
         max_size = ndim
-
     check_type(int, ndim, "ndim")
     check_type(int, min_size, "min_size")
     check_type(int, max_size, "max_size")
     order_check("size", 0, min_size, max_size)
     check_valid_interval(max_size, ndim, "max_size", "ndim")
-
     axes = st.integers(0, max(0, 2 * ndim - 1)).map(
         lambda x: x if x < ndim else x - 2 * ndim
     )
-
     return st.lists(
         axes, min_size=min_size, max_size=max_size, unique_by=lambda x: x % ndim
     ).map(tuple)
@@ -648,7 +692,16 @@ def broadcastable_shapes(
     max_side: Optional[int] = None,
 ) -> st.SearchStrategy[Shape]:
     """Return a strategy for generating shapes that are broadcast-compatible
-    with the provided shape."""
+    with the provided shape.
+
+    * ``shape`` is a tuple of integers.
+    * ``min_dims`` is the smallest length that the generated shape can possess.
+    * ``max_dims`` is the largest length that the generated shape can possess,
+      defaulting to ``min(32, max(len(shape), min_dims) + 2)``.
+    * ``min_side`` is the smallest size that an unaligned dimension can possess.
+    * ``max_side`` is the largest size that an unaligned dimension can possess,
+      defaulting to 2 plus the size of the largest aligned dimension.
+    """
     check_type(tuple, shape, "shape")
     check_type(int, min_side, "min_side")
     check_type(int, min_dims, "min_dims")
@@ -719,8 +772,27 @@ def mutually_broadcastable_shapes(
     min_side: int = 1,
     max_side: Optional[int] = None,
 ) -> st.SearchStrategy[BroadcastableShapes]:
-    """Return a strategy for generating a specified number of shapes that are
-    mutually-broadcastable with one another and with the provided base shape."""
+    """Return a strategy for generating a specified number of shapes N that are
+    mutually-broadcastable with one another and with the provided base shape.
+
+    * ``num_shapes`` is the number of mutually broadcast-compatible shapes to generate.
+    * ``base-shape`` is the shape against which all generated shapes can broadcast.
+      The default shape is empty, which corresponds to a scalar and thus does
+      not constrain broadcasting at all.
+    * ``shape`` is a tuple of integers.
+    * ``min_dims`` is the smallest length that the generated shape can possess.
+    * ``max_dims`` is the largest length that the generated shape can possess,
+      defaulting to ``min(32, max(len(shape), min_dims) + 2)``.
+    * ``min_side`` is the smallest size that an unaligned dimension can possess.
+    * ``max_side`` is the largest size that an unaligned dimension can possess,
+      defaulting to 2 plus the size of the largest aligned dimension.
+
+    The strategy will generate a :obj:`python:typing.NamedTuple` containing:
+
+    * ``input_shapes`` as a tuple of the N generated shapes.
+    * ``result_shape`` as the resulting shape produced by broadcasting the N shapes
+      with the base shape.
+    """
 
     check_type(int, num_shapes, "num_shapes")
     if num_shapes < 1:
@@ -841,12 +913,29 @@ class IndexStrategy(st.SearchStrategy):
 def indices(
     shape: Shape,
     *,
-    min_dims: int = 0,
+    min_dims: int = 1,
     max_dims: Optional[int] = None,
     allow_ellipsis: bool = True,
     allow_none: bool = False,
 ) -> st.SearchStrategy[BasicIndex]:
-    """Return a strategy for indices."""
+    """Return a strategy for indices for arrays of a specified shape.
+
+    It generates tuples containing some mix of integers, :obj:`python:slice`
+    objects, ``...`` (an ``Ellipsis``), and ``None``. When a length-one tuple
+    would be generated, this strategy may instead return the element which will
+    index the first axis, e.g. ``5`` instead of ``(5,)``.
+
+    * ``shape`` is the shape of the array that will be indexed, as a tuple of
+      integers >= 0. This must be at least two-dimensional for a tuple to be a
+      valid index; for one-dimensional arrays use
+      :func:`~hypothesis.strategies.slices` instead.
+    * ``min_dims`` is the minimum dimensionality of the resulting array from use of
+      the generated index.  If ``min_dims == 0``, zero-dimensional arrays are allowed.
+    * ``max_dims`` is the the maximum dimensionality of the resulting array,
+      defaulting to ``max(len(shape), min_dims) + 2``.
+    * ``allow_ellipsis`` specifies whether ``...`` is allowed in the index.
+    * ``allow_none`` specifies whether ``None`` is allowed in the index.
+    """
     check_type(tuple, shape, "shape")
     check_type(bool, allow_ellipsis, "allow_ellipsis")
     check_type(bool, allow_none, "allow_none")
