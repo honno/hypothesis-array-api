@@ -59,9 +59,9 @@ class BroadcastableShapes(NamedTuple):
     result_shape: Shape
 
 
-SIGNED_INT_NAMES = ["int8", "int16", "int32", "int64"]
-UNSIGNED_INT_NAMES = ["uint8", "uint16", "uint32", "uint64"]
-ALL_INT_NAMES = SIGNED_INT_NAMES + UNSIGNED_INT_NAMES
+INT_NAMES = ["int8", "int16", "int32", "int64"]
+UINT_NAMES = ["uint8", "uint16", "uint32", "uint64"]
+ALL_INT_NAMES = INT_NAMES + UINT_NAMES
 FLOAT_NAMES = ["float32", "float64"]
 DTYPE_NAMES = ["bool"] + ALL_INT_NAMES + FLOAT_NAMES
 
@@ -185,13 +185,11 @@ def from_dtype(
         dtype = dtype_from_name(xp, dtype)
 
     builtin_family, stubs = find_dtype_builtin_family(xp, dtype)
-
     if builtin_family is bool:
         return st.booleans()
 
     def minmax_values_kw(info):
         kw = {}
-
         if min_value is None:
             kw["min_value"] = info.min
         else:
@@ -201,7 +199,6 @@ def from_dtype(
                     f"to be at least {info.min}"
                 )
             kw["min_value"] = min_value
-
         if max_value is None:
             kw["max_value"] = info.max
         else:
@@ -211,7 +208,6 @@ def from_dtype(
                     f"to be at most {info.max}"
                 )
             kw["max_value"] = max_value
-
         return kw
 
     if builtin_family is int:
@@ -221,7 +217,6 @@ def from_dtype(
 
     if builtin_family is float:
         finfo = xp.finfo(dtype)
-
         kw = minmax_values_kw(finfo)
         if allow_nan is not None:
             kw["allow_nan"] = allow_nan
@@ -231,12 +226,10 @@ def from_dtype(
             kw["exclude_min"] = exclude_min
         if exclude_max is not None:
             kw["exclude_max"] = exclude_max
-
         return st.floats(width=finfo.bits, **kw)
 
     if len(stubs) > 0:
         warn_on_missing_dtypes(xp, stubs)
-
     raise InvalidArgument(f"No strategy inference for {dtype}")
 
 

@@ -20,8 +20,8 @@ from hypothesis import assume, given, settings
 from hypothesis import strategies as st
 from pytest import mark
 
-from hypothesis_array import (DTYPE_NAMES, SIGNED_INT_NAMES,
-                              UNSIGNED_INT_NAMES, get_strategies_namespace)
+from hypothesis_array import (DTYPE_NAMES, INT_NAMES, UINT_NAMES,
+                              get_strategies_namespace)
 
 from .xputils import create_array_module
 
@@ -38,7 +38,7 @@ def test_strategies_for_standard_dtypes_have_reusable_values(dtype):
 def builtin_from_dtype_name(name: str) -> Type[Union[bool, int, float]]:
     if name == "bool":
         return bool
-    elif name in SIGNED_INT_NAMES or name in UNSIGNED_INT_NAMES:
+    elif name in INT_NAMES or name in UINT_NAMES:
         return int
     elif name in DTYPE_NAMES:
         return float

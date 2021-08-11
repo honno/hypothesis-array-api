@@ -16,8 +16,8 @@
 from hypothesis import given
 from pytest import mark
 
-from hypothesis_array import (DTYPE_NAMES, SIGNED_INT_NAMES,
-                              UNSIGNED_INT_NAMES, get_strategies_namespace)
+from hypothesis_array import (DTYPE_NAMES, INT_NAMES, UINT_NAMES,
+                              get_strategies_namespace)
 
 from .common.debug import minimal
 from .xputils import create_array_module
@@ -38,12 +38,12 @@ def test_can_generate_boolean_dtypes(dtype):
 
 @given(xps.integer_dtypes())
 def test_can_generate_integer_dtypes(dtype):
-    assert dtype in (getattr(xp, name) for name in SIGNED_INT_NAMES)
+    assert dtype in (getattr(xp, name) for name in INT_NAMES)
 
 
 @given(xps.unsigned_integer_dtypes())
 def test_can_generate_unsigned_integer_dtypes(dtype):
-    assert dtype in (getattr(xp, name) for name in UNSIGNED_INT_NAMES)
+    assert dtype in (getattr(xp, name) for name in UINT_NAMES)
 
 
 @given(xps.floating_dtypes())

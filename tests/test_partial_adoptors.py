@@ -10,7 +10,7 @@ from hypothesis.errors import InvalidArgument
 from pytest import raises
 
 import hypothesis_array as xps
-from hypothesis_array import FLOAT_NAMES, SIGNED_INT_NAMES, UNSIGNED_INT_NAMES
+from hypothesis_array import FLOAT_NAMES, INT_NAMES, UINT_NAMES
 
 from .xputils import DTYPES_MAP, create_array_module
 
@@ -105,7 +105,7 @@ def test_integer_dtypes(dtype_map_and_missing_dtypes):
         attrs_to_del=tuple(missing_dtypes),
     )
 
-    if any(name in dtype_map.keys() for name in SIGNED_INT_NAMES):
+    if any(name in dtype_map.keys() for name in INT_NAMES):
         @given(xps.integer_dtypes(xp))
         def test(dtype):
             pass
@@ -126,7 +126,7 @@ def test_unsigned_integer_dtypes(dtype_map_and_missing_dtypes):
         attrs_to_del=tuple(missing_dtypes),
     )
 
-    if any(name in dtype_map.keys() for name in UNSIGNED_INT_NAMES):
+    if any(name in dtype_map.keys() for name in UINT_NAMES):
         @given(xps.unsigned_integer_dtypes(xp))
         def test(dtype):
             pass
