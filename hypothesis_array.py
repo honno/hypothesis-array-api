@@ -12,12 +12,6 @@
 # v. 2.0. If a copy of the MPL was not distributed with this file, You can
 # obtain one at https://mozilla.org/MPL/2.0/.
 
-"""Note this reference page is very much WIP.
-See `Hypothesis for the scientific stack
-<https://hypothesis.readthedocs.io/en/latest/numpy.html#numpy>`_
-for a general idea on what we're doing here.
-"""
-
 import math
 from collections import defaultdict
 from functools import update_wrapper
@@ -129,7 +123,7 @@ def order_check(name, floor, min_, max_):
 
 
 def find_dtype_builtin_family(
-        xp, dtype: Type[DataType]
+    xp, dtype: Type[DataType]
 ) -> Tuple[Type[Union[bool, int, float]], List[str]]:
     builtin_family = None
     stubs = []
