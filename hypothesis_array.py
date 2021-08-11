@@ -125,30 +125,30 @@ def order_check(name, floor, min_, max_):
         raise InvalidArgument(f"min_{name}={min_} is larger than max_{name}={max_}")
 
 
-def find_dtype_builtin_family(
+def find_castable_builtin_for_dtype(
     xp, dtype: Type[DataType]
 ) -> Tuple[Type[Union[bool, int, float]], List[str]]:
-    builtin_family = None
+    builtin = None
     stubs = []
 
     try:
         bool_dtype = xp.bool
         if dtype == bool_dtype:
-            builtin_family = bool
+            builtin = bool
     except AttributeError:
         stubs.append("bool")
 
     int_dtypes, int_stubs = partition_attributes_and_stubs(xp, ALL_INT_NAMES)
     if dtype in int_dtypes:
-        builtin_family = int
+        builtin = int
     stubs.extend(int_stubs)
 
     float_dtypes, float_stubs = partition_attributes_and_stubs(xp, FLOAT_NAMES)
     if dtype in float_dtypes:
-        builtin_family = float
+        builtin = float
     stubs.extend(float_stubs)
 
-    return builtin_family, stubs
+    return builtin, stubs
 
 
 def dtype_from_name(xp, name: str) -> Type[DataType]:
@@ -198,8 +198,9 @@ def from_dtype(
     if isinstance(dtype, str):
         dtype = dtype_from_name(xp, dtype)
 
-    builtin_family, stubs = find_dtype_builtin_family(xp, dtype)
-    if builtin_family is bool:
+    builtin, stubs = find_castable_builtin_for_dtype(xp, dtype)
+
+    if builtin is bool:
         return st.booleans()
 
     def minmax_values_kw(info):
@@ -224,12 +225,12 @@ def from_dtype(
             kw["max_value"] = max_value
         return kw
 
-    if builtin_family is int:
+    if builtin is int:
         iinfo = xp.iinfo(dtype)
         kw = minmax_values_kw(iinfo)
         return st.integers(**kw)
 
-    if builtin_family is float:
+    if builtin is float:
         finfo = xp.finfo(dtype)
         kw = minmax_values_kw(finfo)
         if allow_nan is not None:
@@ -257,8 +258,7 @@ class ArrayStrategy(st.SearchStrategy):
         self.unique = unique
         self.array_size = math.prod(shape)
 
-        builtin_family, _ = find_dtype_builtin_family(xp, dtype)
-        self.builtin = builtin_family
+        self.builtin, _ = find_castable_builtin_for_dtype(xp, dtype)
 
     def set_value(self, result, i, val, strategy=None):
         strategy = strategy or self.elements_strategy
@@ -272,8 +272,7 @@ class ArrayStrategy(st.SearchStrategy):
         self.check_set_value(val, result[i], strategy)
 
     def check_set_value(self, val, val_0d, strategy):
-        if ((val == val and val_0d != val) or
-                (self.xp.isfinite(val_0d) and self.builtin(val_0d) != val)):
+        if self.xp.isfinite(val_0d) and self.builtin(val_0d) != val:
             raise InvalidArgument(
                 f"Generated array element {val!r} from strategy {strategy} "
                 f"cannot be represented as dtype {self.dtype}. "
@@ -285,10 +284,15 @@ class ArrayStrategy(st.SearchStrategy):
 
     def do_draw(self, data):
         if 0 in self.shape:
-            return self.xp.empty(self.shape, dtype=self.dtype)
+            return self.xp.zeros(self.shape, dtype=self.dtype)
 
         if self.fill.is_empty:
-            result = self.xp.empty(self.array_size, dtype=self.dtype)
+            # We have no fill value (either because the user explicitly
+            # disabled it or because the default behaviour was used and our
+            # elements strategy does not produce reusable values), so we must
+            # generate a fully dense array with a freshly drawn value for each
+            # entry.
+            result = self.xp.zeros(self.array_size, dtype=self.dtype)
             if self.unique:
                 seen = set()
                 elements = cu.many(
@@ -300,17 +304,23 @@ class ArrayStrategy(st.SearchStrategy):
                 i = 0
                 while elements.more():
                     val = data.draw(self.elements_strategy)
-                    self.set_value(result, i, val)
-                    if result[i] not in seen:
-                        seen.add(val)
-                        i += 1
-                    else:
+                    if val in seen:
                         elements.reject()
+                    else:
+                        seen.add(val)
+                        self.set_value(result, i, val)
+                        i += 1
             else:
                 for i in range(self.array_size):
                     val = data.draw(self.elements_strategy)
                     self.set_value(result, i, val)
         else:
+            # We draw arrays as "sparse with an offset". We assume not every
+            # element will be assigned and so first draw a single value from our
+            # fill strategy to create a full array. We then draw a collection of
+            # index assignments within the array and assign fresh values from
+            # our elements strategy to those indices.
+
             fill_val = data.draw(self.fill)
             try:
                 result = self.xp.full(self.array_size, fill_val, dtype=self.dtype)
@@ -332,6 +342,9 @@ class ArrayStrategy(st.SearchStrategy):
                 data,
                 min_size=0,
                 max_size=self.array_size,
+                # sqrt isn't chosen for any particularly principled reason. It
+                # just grows reasonably quickly but sublinearly, and for small
+                # arrays it represents a decent fraction of the array size.
                 average_size=math.sqrt(self.array_size),
             )
 
@@ -392,7 +405,7 @@ def arrays(
     """
 
     infer_xp_is_compliant(xp)
-    check_xp_attributes(xp, ["empty", "full", "all", "isnan", "isfinite", "reshape"])
+    check_xp_attributes(xp, ["zeros", "full", "all", "isnan", "isfinite", "reshape"])
 
     if isinstance(dtype, st.SearchStrategy):
         return dtype.flatmap(
