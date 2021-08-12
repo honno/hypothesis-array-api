@@ -415,14 +415,21 @@ def arrays(
       Array([[-8,  6,  3],
              [-6,  4,  6]], dtype=int8)
 
-    See :hyp-ref:`What you can generate and how <data.html>`
+    Specifying element boundaries by a :obj:`python:dict` of the kwargs to pass
+    to :func:`from_dtype` will ensure ``dtype`` bounds will be respected.
 
     .. code-block:: pycon
 
-      >>> from numpy import array_api as xp
-      >>> from hypothesis.strategies import floats
+      >>> arrays(xp, xp.int8, 3, elements={"min_value": 10}).example()
+      Array([125, 13, 79], dtype=int8)
+
+    Refer to :hyp-ref:`What you can generate and how <data.html>` for passing
+    your own elements strategy.
+
+    .. code-block:: pycon
+
       >>> arrays(xp, xp.float32, 3, elements=floats(0, 1, width=32)).example()
-      Array([ 0.88974794,  0.77387938,  0.1977879 ])
+      Array([ 0.88974794,  0.77387938,  0.1977879 ], dtype=float32)
 
     Array values are generated in two parts:
 
@@ -435,7 +442,7 @@ def arrays(
     to disable this behaviour and draw a value for every element.
 
     By default ``arrays`` will attempt to infer the correct fill behaviour: if
-    unique is ``True``, no filling will occur by default. Otherwise, if it looks
+    ``unique`` is also ``True``, no filling will occur. Otherwise, if it looks
     safe to reuse the values of elements across multiple coordinates (this will
     be the case for any inferred strategy, and for most of the builtins, but is
     not the case for mutable values or strategies built with flatmap, map,
