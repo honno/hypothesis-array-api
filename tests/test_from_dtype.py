@@ -23,6 +23,7 @@ from pytest import mark
 from hypothesis_array import (DTYPE_NAMES, INT_NAMES, UINT_NAMES,
                               get_strategies_namespace)
 
+from .common.debug import minimal
 from .xputils import create_array_module
 
 xp = create_array_module()
@@ -120,3 +121,8 @@ def test_from_dtype_with_kwargs(data, dtype, kwargs, predicate):
     strat = xps.from_dtype(dtype, **kwargs)
     value = data.draw(strat)
     assert predicate(value)
+
+
+def test_can_minimize_floats():
+    smallest = minimal(xps.from_dtype(xp.float32), lambda n: n >= 1.0)
+    assert smallest in (1, 50)

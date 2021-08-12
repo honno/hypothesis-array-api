@@ -15,6 +15,7 @@
 import math
 from collections import defaultdict
 from functools import update_wrapper
+from numbers import Real
 from types import SimpleNamespace
 from typing import (Any, Iterable, List, Mapping, NamedTuple, Optional,
                     Sequence, Tuple, Type, TypeVar, Union)
@@ -207,39 +208,50 @@ def from_dtype(
     if builtin is bool:
         return st.booleans()
 
-    def minmax_values_kw(info):
-        kw = {}
+    def check_min_value(info_obj):
+        assert isinstance(min_value, Real)
+        if min_value < info_obj.min:
+            raise InvalidArgument(
+                f"dtype {dtype} requires min_value={min_value} "
+                f"to be at least {info_obj.min}"
+            )
 
-        if min_value is None:
-            kw["min_value"] = info.min
-        else:
-            if min_value < info.min:
-                raise InvalidArgument(
-                    f"dtype {dtype} requires min_value={min_value} "
-                    f"to be at least {info.min}"
-                )
-            kw["min_value"] = min_value
-
-        if max_value is None:
-            kw["max_value"] = info.max
-        else:
-            if max_value > info.max:
-                raise InvalidArgument(
-                    f"dtype {dtype} requires max_value={max_value} "
-                    f"to be at most {info.max}"
-                )
-            kw["max_value"] = max_value
-
-        return kw
+    def check_max_value(info_obj):
+        assert isinstance(max_value, Real)
+        if max_value > info_obj.max:
+            raise InvalidArgument(
+                f"dtype {dtype} requires max_value={max_value} "
+                f"to be at most {info_obj.max}"
+            )
 
     if builtin is int:
         iinfo = xp.iinfo(dtype)
-        kw = minmax_values_kw(iinfo)
+        kw = {}
+        if min_value is None:
+            kw["min_value"] = iinfo.min
+        else:
+            check_min_value(iinfo)
+            kw["min_value"] = min_value
+        if max_value is None:
+            kw["max_value"] = iinfo.max
+        else:
+            check_max_value(iinfo)
+            kw["max_value"] = max_value
         return st.integers(**kw)
 
     if builtin is float:
         finfo = xp.finfo(dtype)
-        kw = minmax_values_kw(finfo)
+        kw = {}
+        # Whilst we know the boundary values of float dtypes we do not assign
+        # them to the floats() strategy by default - passing min/max values will
+        # modify test case reduction behaviour so that simple bugs may become
+        # harder for users to identiy.
+        if min_value is not None:
+            check_min_value(finfo)
+            kw["min_value"] = min_value
+        if max_value is not None:
+            check_max_value(finfo)
+            kw["max_value"] = max_value
         if allow_nan is not None:
             kw["allow_nan"] = allow_nan
         if allow_infinity is not None:
