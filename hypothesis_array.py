@@ -997,7 +997,25 @@ def indices(
 
 
 def get_strategies_namespace(xp) -> SimpleNamespace:
-    """Creates a strategies namespace."""
+    """Creates a strategies namespace for the passed array module.
+
+    * ``xp`` is the Array API library to automatically pass to the namespaced methods.
+
+    A :obj:`python:types.SimpleNamespace` is returned which contains all the
+    strategy methods in this module, where (if required) the ``xp`` argument
+    is alredy passed.
+
+    .. code-block:: pycon
+
+      >>> from numpy import array_api as xp
+      >>> from hypothesis_array import get_strategies_namespace
+      >>> xps = get_strategies_namespace(xp)
+      >>> x = xps.arrays(xp.int8, 3).example()
+      >>> x
+      Array([-8, 6, 3], dtype=int8)
+      >>> x.__array_namespace__() is xp
+      True
+    """
     infer_xp_is_compliant(xp)
 
     return SimpleNamespace(
