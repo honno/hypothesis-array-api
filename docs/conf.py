@@ -67,5 +67,6 @@ intersphinx_mapping = {
 }
 
 extlinks = {
+    "hyp-ref": ("https://hypothesis.readthedocs.io/en/latest/%s", ""),
     "array-ref": ("https://data-apis.org/array-api/latest/API_specification/%s", ""),
 }

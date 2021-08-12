@@ -190,7 +190,9 @@ def from_dtype(
 
     Compatible ``**kwargs`` are passed to the inferred strategy function for
     integers and floats.  This allows you to customise the min and max values,
-    and exclude non-finite numbers.
+    and exclude non-finite numbers. This is particularly useful when kwargs are
+    passed through from :func:`arrays`, as it seamlessly handles the ``width``
+    or other representable bounds for you.
     """
     infer_xp_is_compliant(xp)
     check_xp_attributes(xp, ["iinfo", "finfo"])
@@ -417,6 +419,49 @@ def arrays(
       from one another. Note that in this case multiple NaN values may still be
       allowed. If fill is also set, the only valid values for fill to return are
       NaN values.
+
+    Arrays of specified ``dtype`` and ``shape`` are generated for example
+    like this:
+
+    .. code-block:: pycon
+
+      >>> from numpy import array_api as xp
+      >>> arrays(xp, xp.int8, (2, 3)).example()
+      Array([[-8,  6,  3],
+             [-6,  4,  6]], dtype=int8)
+
+    See :hyp-ref:`What you can generate and how <data.html>`.
+
+    .. code-block:: pycon
+
+      >>> from numpy import array_api as xp
+      >>> from hypothesis.strategies import floats
+      >>> arrays(xp, xp.float32, 3, elements=floats(0, 1, width=32)).example()
+      Array([ 0.88974794,  0.77387938,  0.1977879 ])
+
+    Array values are generated in two parts:
+
+    1. A single value is drawn from the fill strategy and is used to create a
+       filled array.
+    2. Some subset of the coordinates of the array are populated with a value
+       drawn from the elements strategy (or its inferred form).
+
+    You can set ``fill`` to :func:`~hypothesis.strategies.nothing` if you want
+    to disable this behaviour and draw a value for every element.
+
+    By default ``arrays`` will attempt to infer the correct fill behaviour: if
+    unique is ``True``, no filling will occur by default. Otherwise, if it looks
+    safe to reuse the values of elements across multiple coordinates (this will
+    be the case for any inferred strategy, and for most of the builtins, but is
+    not the case for mutable values or strategies built with flatmap, map,
+    composite, etc.) then it will use the elements strategy as the fill, else it
+    will default to having no fill.
+
+    Having a fill helps Hypothesis craft high quality examples, but its
+    main importance is when the array generated is large: Hypothesis is
+    primarily designed around testing small examples. If you have arrays with
+    hundreds or more elements, having a fill value is essential if you want
+    your tests to run in reasonable time.
     """
 
     infer_xp_is_compliant(xp)
@@ -596,7 +641,7 @@ def floating_dtypes(
     """Return a strategy for floating-point dtype objects.
 
     ``sizes`` contains the floating-point sizes in bits, defaulting to
-    ``(32, 64)`` which covers the two valid sizes.
+    ``(32, 64)`` which covers all valid sizes.
     """
 
     infer_xp_is_compliant(xp)
@@ -617,10 +662,29 @@ def valid_tuple_axes(
     max_size: Optional[int] = None,
 ) -> st.SearchStrategy[Shape]:
     """Return a strategy generating permissable tuple-values for the ``axis``
-    argument in many Array API methods, given the specified dimensionality.
+    argument in Array API sequential methods e.g. ``sum``, given the specified
+    dimensionality.
 
     All tuples will have a length >= ``min_size`` and <= ``max_size``. The default
     value for ``max_size`` is ``ndim``.
+
+    Examples from this strategy shrink towards an empty tuple, which render most
+    sequential functions as no-ops.
+
+    The following are some examples drawn from this strategy.
+
+    .. code-block:: pycon
+
+      >>> [valid_tuple_axes(3).example() for i in range(4)]
+      [(-3, 1), (0, 1, -1), (0, 2), (0, -2, 2)]
+
+    ``valid_tuple_axes`` can be joined with other strategies to generate
+    any type of valid axis object, i.e. integers, tuples, and ``None``:
+
+    .. code-block:: python
+
+      any_axis_strategy = none() | integers(-ndim, ndim - 1) | valid_tuple_axes(ndim)
+
     """
     if max_size is None:
         max_size = ndim
@@ -733,6 +797,10 @@ def broadcastable_shapes(
     """Return a strategy for generating shapes that are broadcast-compatible
     with the provided shape.
 
+    Examples from this strategy shrink towards a shape with length ``min_dims``.
+    The size of an aligned dimension shrinks towards size ``1``. The size of an
+    unaligned dimension shrink towards ``min_side``.
+
     * ``shape`` is a tuple of integers.
     * ``min_dims`` is the smallest length that the generated shape can possess.
     * ``max_dims`` is the largest length that the generated shape can possess,
@@ -740,6 +808,13 @@ def broadcastable_shapes(
     * ``min_side`` is the smallest size that an unaligned dimension can possess.
     * ``max_side`` is the largest size that an unaligned dimension can possess,
       defaulting to 2 plus the size of the largest aligned dimension.
+
+    The following are some examples drawn from this strategy.
+
+    .. code-block:: pycon
+
+        >>> [broadcastable_shapes(shape=(2, 3)).example() for i in range(5)]
+        [(1, 3), (), (2, 3), (2, 1), (4, 1, 3), (3, )]
     """
     check_type(tuple, shape, "shape")
     check_type(int, min_side, "min_side")
@@ -831,6 +906,21 @@ def mutually_broadcastable_shapes(
     * ``input_shapes`` as a tuple of the N generated shapes.
     * ``result_shape`` as the resulting shape produced by broadcasting the N shapes
       with the base shape.
+
+    The following are some examples drawn from this strategy.
+
+    .. code-block:: pycon
+
+        >>> # Draw three shapes where each shape is broadcast-compatible with (2, 3)
+        ... strat = mutually_broadcastable_shapes(num_shapes=3, base_shape=(2, 3))
+        >>> for _ in range(5):
+        ...     print(strat.example())
+        BroadcastableShapes(input_shapes=((4, 1, 3), (4, 2, 3), ()), result_shape=(4, 2, 3))
+        BroadcastableShapes(input_shapes=((3,), (1,), (2, 1)), result_shape=(2, 3))
+        BroadcastableShapes(input_shapes=((3,), (1, 3), (2, 3)), result_shape=(2, 3))
+        BroadcastableShapes(input_shapes=((), (), ()), result_shape=(2, 3))
+        BroadcastableShapes(input_shapes=((3,), (), (3,)), result_shape=(2, 3))
+
     """
 
     check_type(int, num_shapes, "num_shapes")
@@ -1002,19 +1092,23 @@ def get_strategies_namespace(xp) -> SimpleNamespace:
     * ``xp`` is the Array API library to automatically pass to the namespaced methods.
 
     A :obj:`python:types.SimpleNamespace` is returned which contains all the
-    strategy methods in this module, where (if required) the ``xp`` argument
-    is alredy passed.
+    strategy methods in this module but without requiring the ``xp`` argument.
+
+    Creating and using a strategies namespace for NumPy's Array API implemention
+    would go like this:
 
     .. code-block:: pycon
 
       >>> from numpy import array_api as xp
-      >>> from hypothesis_array import get_strategies_namespace
       >>> xps = get_strategies_namespace(xp)
-      >>> x = xps.arrays(xp.int8, 3).example()
+      >>> x = xps.arrays(xp.int8, (2, 3)).example()
       >>> x
+      Array([[-8,  6,  3],
+             [-6,  4,  6]], dtype=int8)
       Array([-8, 6, 3], dtype=int8)
       >>> x.__array_namespace__() is xp
       True
+
     """
     infer_xp_is_compliant(xp)
 
