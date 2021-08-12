@@ -165,11 +165,11 @@ def from_dtype(
     exclude_min: Optional[bool] = None,
     exclude_max: Optional[bool] = None,
 ) -> st.SearchStrategy[Union[bool, int, float]]:
-    """Creates a strategy which can generate any value of the given dtype.
+    """Return a strategy for any value of the given dtype.
 
     Values generated are of the Python scalar which is
     :array-ref:`promotable <type_promotion.html>` to ``dtype``, where the values
-    will never exceed its bounds.
+    do not exceed its bounds.
 
     * ``dtype`` may be a dtype object or the string name of a
       :array-ref:`valid dtype <data_types.html>`.
@@ -385,17 +385,16 @@ def arrays(
     fill: Optional[st.SearchStrategy[Any]] = None,
     unique: bool = False,
 ) -> st.SearchStrategy[Array]:
-    """Returns a strategy for generating arrays.
+    """Returns a strategy for :array-ref:`arrays <array_object.html>`.
 
     * ``dtype`` may be a :array-ref:`valid dtype <data_types.html>` object or
       name, or a strategy that generates such values.
     * ``shape`` may be an integer >= 0, a tuple of such integers, or a strategy
       that generates such values.
-    * ``elements`` is a strategy for generating values to put in the array. If
-      ``None`` then a suitable value will be inferred based on the dtype, which
-      may give any legal value (including e.g. NaN for floats). If a mapping,
-      it will be passed as ``**kwargs`` to ``from_dtype()`` when inferring based
-      on the dtype.
+    * ``elements`` is a strategy for values to put in the array. If ``None``
+      then a suitable value will be inferred based on the dtype, which may give
+      any legal value (including e.g. NaN for floats). If a mapping, it will be
+      passed as ``**kwargs`` to ``from_dtype()`` when inferring based on the dtype.
     * ``fill`` is a strategy that may be used to generate a single background
       value for the array. If ``None``, a suitable default will be inferred
       based on the other arguments. If set to
@@ -416,7 +415,7 @@ def arrays(
       Array([[-8,  6,  3],
              [-6,  4,  6]], dtype=int8)
 
-    See :hyp-ref:`What you can generate and how <data.html>`.
+    See :hyp-ref:`What you can generate and how <data.html>`
 
     .. code-block:: pycon
 
@@ -647,7 +646,7 @@ def valid_tuple_axes(
     min_size: int = 0,
     max_size: Optional[int] = None,
 ) -> st.SearchStrategy[Shape]:
-    """Return a strategy generating permissable tuple-values for the ``axis``
+    """Return a strategy for permissable tuple-values for the ``axis``
     argument in Array API sequential methods e.g. ``sum``, given the specified
     dimensionality.
 
@@ -780,8 +779,8 @@ def broadcastable_shapes(
     min_side: int = 1,
     max_side: Optional[int] = None,
 ) -> st.SearchStrategy[Shape]:
-    """Return a strategy for generating shapes that are broadcast-compatible
-    with the provided shape.
+    """Return a strategy for shapes that are broadcast-compatible with the
+    provided shape.
 
     Examples from this strategy shrink towards a shape with length ``min_dims``.
     The size of an aligned dimension shrinks towards size ``1``. The size of an
@@ -872,7 +871,7 @@ def mutually_broadcastable_shapes(
     min_side: int = 1,
     max_side: Optional[int] = None,
 ) -> st.SearchStrategy[BroadcastableShapes]:
-    """Return a strategy for generating a specified number of shapes N that are
+    """Return a strategy for a specified number of shapes N that are
     mutually-broadcastable with one another and with the provided base shape.
 
     * ``num_shapes`` is the number of mutually broadcast-compatible shapes to generate.
@@ -1003,7 +1002,7 @@ class IndexStrategy(st.SearchStrategy):
             result.insert(i, None)
             result_dims += 1
         # Check that we'll have the right number of dimensions; reject if not.
-        # It's easy to do this by construction iff you don't care about shrinking,
+        # It's easy to do this by construction if you don't care about shrinking,
         # which is really important for array shapes.  So we filter instead.
         assume(self.min_dims <= result_dims <= self.max_dims)
         # This is a quick-and-dirty way to insert ..., xor shorten the indexer,
@@ -1033,7 +1032,8 @@ def indices(
     allow_ellipsis: bool = True,
     allow_none: bool = False,
 ) -> st.SearchStrategy[BasicIndex]:
-    """Return a strategy for indices for arrays of a specified shape.
+    """Return a strategy for :array-ref:`valid indices <indexing.html>` of
+    arrays with the specified shape.
 
     It generates tuples containing some mix of integers, :obj:`python:slice`
     objects, ``...`` (an ``Ellipsis``), and ``None``. When a length-one tuple
@@ -1052,13 +1052,15 @@ def indices(
     * ``allow_none`` specifies whether ``None`` is allowed in the index.
     """
     check_type(tuple, shape, "shape")
+    if len(shape) == 0:
+        raise InvalidArgument("No valid indices for zero-dimensional arrays")
     check_type(bool, allow_ellipsis, "allow_ellipsis")
     check_type(bool, allow_none, "allow_none")
     check_type(int, min_dims, "min_dims")
     if max_dims is None:
         max_dims = min(max(len(shape), min_dims) + 2, 32)
     check_type(int, max_dims, "max_dims")
-    order_check("dims", 0, min_dims, max_dims)
+    order_check("dims", 1, min_dims, max_dims)
     if not all(isinstance(x, int) and x >= 0 for x in shape):
         raise InvalidArgument(
             f"shape={shape!r}, but all dimensions must be of integer size >= 0"

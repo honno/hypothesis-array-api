@@ -22,7 +22,7 @@ xps = get_strategies_namespace(xp)
     ids=["Ellipsis in ix", "Ellipsis not in ix"]
 )
 def test_indices_options(condition):
-    indexers = xps.array_shapes(min_dims=0, max_dims=32).flatmap(
+    indexers = xps.array_shapes(min_dims=1, max_dims=32).flatmap(
         lambda shape: xps.indices(shape, allow_none=True)
     )
     find_any(indexers, condition)
@@ -58,9 +58,9 @@ def test_indices_replaces_whole_axis_slices_with_ellipsis(idx):
 
 
 @given(
-    shape=xps.array_shapes(min_dims=0, max_side=4)
-    | xps.array_shapes(min_dims=0, min_side=0, max_side=10),
-    min_dims=st.integers(0, 5),
+    shape=xps.array_shapes(min_dims=1, max_side=4)
+    | xps.array_shapes(min_dims=1, min_side=0, max_side=10),
+    min_dims=st.integers(1, 5),
     allow_ellipsis=st.booleans(),
     allow_none=st.booleans(),
     data=st.data(),
