@@ -86,9 +86,9 @@ def partition_attributes_and_stubs(
 
 def infer_xp_is_compliant(xp):
     try:
-        array = xp.asarray(0, dtype=xp.int8)
+        array = xp.zeros(1)
         array.__array_namespace__()
-    except AttributeError:
+    except Exception:
         warn(
             f"Could not determine whether module {xp.__name__} "
             "is an Array API library",
@@ -101,7 +101,6 @@ def check_xp_attributes(xp, attributes: List[str]):
     for attr in attributes:
         if not hasattr(xp, attr):
             missing_attrs.append(attr)
-
     if len(missing_attrs) > 0:
         f_attrs = ", ".join(missing_attrs)
         raise AttributeError(
@@ -200,11 +199,17 @@ def from_dtype(
 
     builtin, stubs = find_castable_builtin_for_dtype(xp, dtype)
 
+    if builtin is None:
+        if len(stubs) > 0:
+            warn_on_missing_dtypes(xp, stubs)
+        raise InvalidArgument(f"No strategy inference for {dtype}")
+
     if builtin is bool:
         return st.booleans()
 
     def minmax_values_kw(info):
         kw = {}
+
         if min_value is None:
             kw["min_value"] = info.min
         else:
@@ -214,6 +219,7 @@ def from_dtype(
                     f"to be at least {info.min}"
                 )
             kw["min_value"] = min_value
+
         if max_value is None:
             kw["max_value"] = info.max
         else:
@@ -223,6 +229,7 @@ def from_dtype(
                     f"to be at most {info.max}"
                 )
             kw["max_value"] = max_value
+
         return kw
 
     if builtin is int:
@@ -242,10 +249,6 @@ def from_dtype(
         if exclude_max is not None:
             kw["exclude_max"] = exclude_max
         return st.floats(width=finfo.bits, **kw)
-
-    if len(stubs) > 0:
-        warn_on_missing_dtypes(xp, stubs)
-    raise InvalidArgument(f"No strategy inference for {dtype}")
 
 
 class ArrayStrategy(st.SearchStrategy):
@@ -800,7 +803,7 @@ def mutually_broadcastable_shapes(
     mutually-broadcastable with one another and with the provided base shape.
 
     * ``num_shapes`` is the number of mutually broadcast-compatible shapes to generate.
-    * ``base-shape`` is the shape against which all generated shapes can broadcast.
+    * ``base_shape`` is the shape against which all generated shapes can broadcast.
       The default shape is empty, which corresponds to a scalar and thus does
       not constrain broadcasting at all.
     * ``shape`` is a tuple of integers.
