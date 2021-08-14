@@ -19,7 +19,6 @@ xps = get_strategies_namespace(xp)
         lambda ix: Ellipsis in ix,
         lambda ix: Ellipsis not in ix,
     ],
-    ids=["Ellipsis in ix", "Ellipsis not in ix"]
 )
 def test_indices_options(condition):
     indexers = xps.array_shapes(min_dims=1, max_dims=32).flatmap(

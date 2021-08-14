@@ -17,6 +17,9 @@ def e(a, **kwargs):
 @mark.parametrize(
     ("function", "kwargs"),
     [
+        e(xps.arrays, dtype=xp.int8, shape=(0.5,)),
+        e(xps.arrays, dtype=xp.int8, shape=1, fill=3),
+        e(xps.arrays, dtype=xp.int8, shape=1, elements="not a strategy"),
         e(xps.array_shapes, min_side=2, max_side=1),
         e(xps.array_shapes, min_dims=3, max_dims=2),
         e(xps.array_shapes, min_dims=-1),
@@ -25,24 +28,17 @@ def e(a, **kwargs):
         e(xps.array_shapes, max_side="not an int"),
         e(xps.array_shapes, min_dims="not an int"),
         e(xps.array_shapes, max_dims="not an int"),
-
-        e(xps.arrays, dtype=xp.int8, shape=(0.5,)),
-        e(xps.arrays, dtype=xp.int8, shape=1, fill=3),
-        e(xps.arrays, dtype=xp.int8, shape=1, elements="not a strategy"),
-
         e(xps.from_dtype, dtype=1),
         e(xps.from_dtype, dtype=xp.int8, min_value=-999),
         e(xps.from_dtype, dtype=xp.int8, max_value=999),
         e(xps.from_dtype, dtype=xp.uint8, min_value=-999),
         e(xps.from_dtype, dtype=xp.uint8, max_value=999),
-
         e(xps.integer_dtypes, sizes=()),
         e(xps.integer_dtypes, sizes=(3,)),
         e(xps.unsigned_integer_dtypes, sizes=()),
         e(xps.unsigned_integer_dtypes, sizes=(3,)),
         e(xps.floating_dtypes, sizes=()),
         e(xps.floating_dtypes, sizes=(3,)),
-
         e(xps.valid_tuple_axes, ndim=-1),
         e(xps.valid_tuple_axes, ndim=2, min_size=-1),
         e(xps.valid_tuple_axes, ndim=2, min_size=3, max_size=10),
@@ -92,7 +88,6 @@ def e(a, **kwargs):
             min_side=2,
             max_side=3,
         ),
-
         e(xps.mutually_broadcastable_shapes, num_shapes=0),
         e(xps.mutually_broadcastable_shapes, num_shapes="a"),
         e(xps.mutually_broadcastable_shapes, num_shapes=2, base_shape="a"),
@@ -174,7 +169,6 @@ def e(a, **kwargs):
             min_side=2,
             max_side=3,
         ),
-
         e(xps.indices, shape=0),
         e(xps.indices, shape=("1", "2")),
         e(xps.indices, shape=(0, -1)),

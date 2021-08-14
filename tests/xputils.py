@@ -10,7 +10,6 @@ import numpy as np
 
 
 __all__ = [
-    "DTYPES_MAP",
     "create_array_module",
 ]
 
@@ -64,15 +63,12 @@ ATTRS_MAP = {
 @lru_cache()
 def create_array_module(
     *,
-    assign_attrs: Tuple[Tuple[str, Any], ...] = (),
-    attrs_to_del: Tuple[str, ...] = (),
+    assign: Tuple[Tuple[str, Any], ...] = (),
+    exclude: Tuple[str, ...] = (),
 ):
     attributes = copy(ATTRS_MAP)
-
-    for attr in attrs_to_del:
+    for attr in exclude:
         del attributes[attr]
-
-    for attr, value in assign_attrs:
-        attributes[attr] = value
-
+    for attr, val in assign:
+        attributes[attr] = val
     return SimpleNamespace(**attributes)

@@ -13,6 +13,7 @@ from hypothesis.errors import HypothesisWarning, InvalidArgument
 from hypothesis.internal.conjecture import utils as cu
 from hypothesis.internal.validation import check_type, check_valid_interval
 from hypothesis.strategies._internal.strategies import check_strategy
+from hypothesis.strategies._internal.utils import defines_strategy
 
 __all__ = [
     "get_strategies_namespace",
@@ -90,7 +91,7 @@ def check_xp_attributes(xp, attributes: List[str]):
             missing_attrs.append(attr)
     if len(missing_attrs) > 0:
         f_attrs = ", ".join(missing_attrs)
-        raise AttributeError(
+        raise InvalidArgument(
             f"Array module {xp.__name__} does not have required attributes: {f_attrs}"
         )
 
@@ -154,6 +155,7 @@ def dtype_from_name(xp, name: str) -> Type[DataType]:
         )
 
 
+@defines_strategy(force_reusable_values=True)
 def from_dtype(
     xp,
     dtype: Union[Type[DataType], str],
@@ -374,6 +376,7 @@ class ArrayStrategy(st.SearchStrategy):
         return result
 
 
+@defines_strategy(force_reusable_values=True)
 def arrays(
     xp,
     dtype: Union[
@@ -494,6 +497,7 @@ def arrays(
     return ArrayStrategy(xp, elements, dtype, shape, fill, unique)
 
 
+@defines_strategy()
 def array_shapes(
     *,
     min_dims: int = 1,
@@ -540,6 +544,7 @@ def check_dtypes(xp, dtypes: List[Type[DataType]], stubs: List[str]):
         warn_on_missing_dtypes(xp, stubs)
 
 
+@defines_strategy()
 def scalar_dtypes(xp) -> st.SearchStrategy[Type[DataType]]:
     """Return a strategy for all :array-ref:`valid dtype <data_types.html>` objects."""
     infer_xp_is_compliant(xp)
@@ -548,6 +553,7 @@ def scalar_dtypes(xp) -> st.SearchStrategy[Type[DataType]]:
     return st.sampled_from(dtypes)
 
 
+@defines_strategy()
 def boolean_dtypes(xp) -> st.SearchStrategy[Type[Boolean]]:
     infer_xp_is_compliant(xp)
     try:
@@ -559,6 +565,7 @@ def boolean_dtypes(xp) -> st.SearchStrategy[Type[Boolean]]:
         ) from None
 
 
+@defines_strategy()
 def numeric_dtypes(xp) -> st.SearchStrategy[Type[Numeric]]:
     """Return a strategy for all numeric dtype objects."""
     infer_xp_is_compliant(xp)
@@ -586,6 +593,7 @@ def numeric_dtype_names(base_name: str, sizes: Sequence[int]):
         yield f"{base_name}{size}"
 
 
+@defines_strategy()
 def integer_dtypes(
     xp, *, sizes: Union[int, Sequence[int]] = (8, 16, 32, 64)
 ) -> st.SearchStrategy[Type[SignedInteger]]:
@@ -605,6 +613,7 @@ def integer_dtypes(
     return st.sampled_from(dtypes)
 
 
+@defines_strategy()
 def unsigned_integer_dtypes(
     xp, *, sizes: Union[int, Sequence[int]] = (8, 16, 32, 64)
 ) -> st.SearchStrategy[Type[UnsignedInteger]]:
@@ -627,6 +636,7 @@ def unsigned_integer_dtypes(
     return st.sampled_from(dtypes)
 
 
+@defines_strategy()
 def floating_dtypes(
     xp, *, sizes: Union[int, Sequence[int]] = (32, 64)
 ) -> st.SearchStrategy[Type[Float]]:
@@ -647,6 +657,7 @@ def floating_dtypes(
     return st.sampled_from(dtypes)
 
 
+@defines_strategy()
 def valid_tuple_axes(
     ndim: int,
     *,
@@ -778,6 +789,7 @@ class MutuallyBroadcastableShapesStrategy(st.SearchStrategy):
         )
 
 
+@defines_strategy()
 def broadcastable_shapes(
     shape: Shape,
     *,
@@ -869,6 +881,7 @@ def broadcastable_shapes(
     ).map(lambda x: x.input_shapes[0])
 
 
+@defines_strategy()
 def mutually_broadcastable_shapes(
     num_shapes: int,
     *,
@@ -1031,6 +1044,7 @@ class IndexStrategy(st.SearchStrategy):
         return tuple(result)
 
 
+@defines_strategy()
 def indices(
     shape: Shape,
     *,
@@ -1100,7 +1114,6 @@ def get_strategies_namespace(xp) -> SimpleNamespace:
       >>> x
       Array([[-8,  6,  3],
              [-6,  4,  6]], dtype=int8)
-      Array([-8, 6, 3], dtype=int8)
       >>> x.__array_namespace__() is xp
       True
 
