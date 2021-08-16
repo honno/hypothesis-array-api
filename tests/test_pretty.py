@@ -1,9 +1,6 @@
-from inspect import signature
-
 from pytest import mark
 
-import hypothesis_array as generic_xps
-from hypothesis_array import get_strategies_namespace
+from hypothesis_array import *
 
 from .xputils import create_array_module
 
@@ -11,49 +8,42 @@ xp = create_array_module(assign=(("__name__", "mockpy"),))
 xps = get_strategies_namespace(xp)
 
 
-stratnames = [
-    "from_dtype",
-    "arrays",
-    "array_shapes",
-    "scalar_dtypes",
-    "boolean_dtypes",
-    "numeric_dtypes",
-    "integer_dtypes",
-    "unsigned_integer_dtypes",
-    "floating_dtypes",
-    "valid_tuple_axes",
-    "broadcastable_shapes",
-    "mutually_broadcastable_shapes",
-    "indices",
-]
-
-
-@mark.parametrize("name", stratnames)
+@mark.parametrize(
+    "name",
+    [
+        "from_dtype",
+        "arrays",
+        "array_shapes",
+        "scalar_dtypes",
+        "boolean_dtypes",
+        "numeric_dtypes",
+        "integer_dtypes",
+        "unsigned_integer_dtypes",
+        "floating_dtypes",
+        "valid_tuple_axes",
+        "broadcastable_shapes",
+        "mutually_broadcastable_shapes",
+        "indices",
+    ]
+)
 def test_namespaced_methods_wrapped(name):
     """Namespaced strategies have readable method names, even if they are lambdas."""
-    namespaced_func = getattr(xps, name)
-    assert namespaced_func.__name__ == name
-
-
-xp_stratnames = []
-for func in [getattr(generic_xps, name) for name in stratnames]:
-    sig = signature(func)
-    if "xp" in sig.parameters:
-        xp_stratnames.append(func.__name__)
+    func = getattr(xps, name)
+    assert func.__name__ == name
 
 
 @mark.parametrize(
     "name, strat",
     [
         # Generic strategies
-        ("from_dtype", generic_xps.from_dtype(xp, xp.int8)),
-        ("arrays", generic_xps.arrays(xp, xp.int8, 5)),
-        ("scalar_dtypes", generic_xps.scalar_dtypes(xp)),
-        ("boolean_dtypes", generic_xps.boolean_dtypes(xp)),
-        ("numeric_dtypes", generic_xps.numeric_dtypes(xp)),
-        ("integer_dtypes", generic_xps.integer_dtypes(xp)),
-        ("unsigned_integer_dtypes", generic_xps.unsigned_integer_dtypes(xp)),
-        ("floating_dtypes", generic_xps.floating_dtypes(xp)),
+        ("from_dtype", from_dtype(xp, xp.int8)),
+        ("arrays", arrays(xp, xp.int8, 5)),
+        ("scalar_dtypes", scalar_dtypes(xp)),
+        ("boolean_dtypes", boolean_dtypes(xp)),
+        ("numeric_dtypes", numeric_dtypes(xp)),
+        ("integer_dtypes", integer_dtypes(xp)),
+        ("unsigned_integer_dtypes", unsigned_integer_dtypes(xp)),
+        ("floating_dtypes", floating_dtypes(xp)),
         # Namespaced strategies
         ("from_dtype", xps.from_dtype(xp.int8)),
         ("arrays", xps.arrays(xp.int8, 5)),
