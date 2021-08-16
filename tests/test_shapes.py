@@ -9,9 +9,8 @@ from pytest import mark, raises
 from hypothesis_array import Shape, get_strategies_namespace
 
 from .common.debug import find_any, minimal
-from .xputils import create_array_module
+from .xputils import xp
 
-xp = create_array_module()
 xps = get_strategies_namespace(xp)
 
 ANY_SHAPE = xps.array_shapes(min_dims=0, max_dims=32, min_side=0, max_side=32)

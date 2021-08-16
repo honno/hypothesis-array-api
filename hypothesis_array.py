@@ -299,7 +299,6 @@ class ArrayStrategy(st.SearchStrategy):
         self.fill = fill
         self.unique = unique
         self.array_size = math.prod(shape)
-
         self.builtin, _ = find_castable_builtin_for_dtype(xp, dtype)
 
     def set_value(self, result, i, val, strategy=None):

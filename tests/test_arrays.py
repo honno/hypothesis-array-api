@@ -9,9 +9,8 @@ from hypothesis_array import DTYPE_NAMES, get_strategies_namespace
 
 from .common.debug import find_any, minimal
 from .common.utils import fails_with, flaky
-from .xputils import create_array_module
+from .xputils import xp
 
-xp = create_array_module()
 xps = get_strategies_namespace(xp)
 
 
@@ -19,7 +18,6 @@ xps = get_strategies_namespace(xp)
 def test_can_generate_arrays_from_scalars(data):
     dtype = data.draw(xps.scalar_dtypes())
     array = data.draw(xps.arrays(dtype, ()))
-
     assert array.dtype == dtype
     # TODO check array.__array_namespace__()
 
@@ -35,7 +33,6 @@ def test_can_generate_arrays_from_scalar_names(name, data):
 def test_can_generate_arrays_from_shapes(data):
     shape = data.draw(xps.array_shapes())
     array = data.draw(xps.arrays(xp.bool, shape))
-
     assert array.ndim == len(shape)
     assert array.shape == shape
     assert array.size == prod(shape)
@@ -87,10 +84,10 @@ def test_can_draw_arrays_from_integers_strategy_as_shape(array):
 
 @given(xps.arrays(xp.bool, ()))
 def test_empty_dimensions_are_arrays(array):
-    # TODO check array.__array_namespace__()
     assert array.dtype == xp.bool
     assert array.ndim == 0
     assert array.shape == ()
+    # TODO check array.__array_namespace__()
 
 
 @given(xps.arrays(xp.bool, (1, 0, 1)))

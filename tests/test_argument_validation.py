@@ -3,9 +3,8 @@ from pytest import mark, param, raises
 
 from hypothesis_array import get_strategies_namespace
 
-from .xputils import create_array_module
+from .xputils import xp
 
-xp = create_array_module()
 xps = get_strategies_namespace(xp)
 
 

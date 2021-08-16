@@ -5,9 +5,8 @@ from pytest import skip
 from hypothesis_array import get_strategies_namespace
 
 from .common.debug import find_any, minimal
-from .xputils import create_array_module
+from .xputils import xp
 
-xp = create_array_module()
 xps = get_strategies_namespace(xp)
 
 

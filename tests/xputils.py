@@ -5,13 +5,7 @@ from typing import Any, Tuple
 
 import numpy as np
 
-# TODO use numpy.array_api when the Array API support PR goes through:
-#      github.com/numpy/numpy/pull/18585
-
-
-__all__ = [
-    "create_array_module",
-]
+__all__ = ["xp", "create_array_module"]
 
 METHODS_MAP = {
     "iinfo": np.iinfo,
@@ -72,3 +66,9 @@ def create_array_module(
     for attr, val in assign:
         attributes[attr] = val
     return SimpleNamespace(**attributes)
+
+
+try:
+    from numpy import array_api as xp
+except ImportError:
+    xp = create_array_module()

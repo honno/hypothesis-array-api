@@ -5,9 +5,8 @@ from hypothesis_array import (DTYPE_NAMES, INT_NAMES, NUMERIC_NAMES,
                               UINT_NAMES, get_strategies_namespace)
 
 from .common.debug import minimal
-from .xputils import create_array_module
+from .xputils import xp
 
-xp = create_array_module()
 xps = get_strategies_namespace(xp)
 
 
