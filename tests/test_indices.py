@@ -93,7 +93,7 @@ def test_indices_generate_valid_indexers(
         assert array.size == 0
     elif math.prod(shape) <= 10 ** 5:
         # If it's small enough to instantiate, do so with distinct elements.
-        array = xp.arange(math.prod(shape)).reshape(shape)
+        array = xp.reshape(xp.arange(math.prod(shape)), shape)
     else:
         # We can't cheat on this one, so just try another.
         assume(False)

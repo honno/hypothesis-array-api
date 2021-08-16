@@ -37,9 +37,9 @@ def test_length_bounds_are_satisfied(ndim, data):
 
 @given(shape=xps.array_shapes(), data=st.data())
 def test_axes_are_valid_inputs_to_sum(shape, data):
-    array = xp.zeros(shape, dtype="uint8")
+    array = xp.zeros(shape, dtype=xp.uint8)
     axes = data.draw(xps.valid_tuple_axes(ndim=len(shape)), label="axes")
-    xp.sum(array, axes)
+    xp.sum(array, axis=axes)
 
 
 @settings(deadline=None, max_examples=10)

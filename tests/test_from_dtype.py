@@ -74,7 +74,7 @@ def test_infer_strategy_from_dtype(dtype, data):
 def test_all_inferred_scalar_strategies_roundtrip(data, dtype):
     array = xp.zeros(shape=1, dtype=dtype)
     ex = data.draw(xps.from_dtype(array.dtype))
-    assume(xp.all(ex == ex))  # the roundtrip test *should* fail!  (eg NaN)
+    assume(ex == ex)  # the roundtrip test *should* fail!  (eg NaN)
     array[0] = ex
     assert array[0] == ex
 
