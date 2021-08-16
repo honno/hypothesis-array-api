@@ -313,7 +313,11 @@ class ArrayStrategy(st.SearchStrategy):
         self.check_set_value(val, result[i], strategy)
 
     def check_set_value(self, val, val_0d, strategy):
-        if self.xp.isfinite(val_0d) and self.builtin(val_0d) != val:
+        if self.builtin is bool:
+            finite = True
+        else:
+            finite = self.xp.isfinite(val_0d)
+        if finite and self.builtin(val_0d) != val:
             raise InvalidArgument(
                 f"Generated array element {val!r} from strategy {strategy} "
                 f"cannot be represented as dtype {self.dtype}. "
