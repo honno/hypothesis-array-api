@@ -1,6 +1,6 @@
 import math
 from collections import defaultdict
-from functools import update_wrapper
+from functools import update_wrapper, wraps
 from numbers import Real
 from types import SimpleNamespace
 from typing import (Any, Iterable, List, Mapping, NamedTuple, Optional,
@@ -78,8 +78,7 @@ def infer_xp_is_compliant(xp):
         array.__array_namespace__()
     except Exception:
         warn(
-            f"Could not determine whether module {xp.__name__} "
-            "is an Array API library",
+            f"Could not determine whether module {xp} is an Array API library",
             HypothesisWarning,
         )
 
@@ -92,15 +91,15 @@ def check_xp_attributes(xp, attributes: List[str]):
     if len(missing_attrs) > 0:
         f_attrs = ", ".join(missing_attrs)
         raise InvalidArgument(
-            f"Array module {xp.__name__} does not have required attributes: {f_attrs}"
+            f"Array module {xp} does not have required attributes: {f_attrs}"
         )
 
 
 def warn_on_missing_dtypes(xp, stubs: List[str]):
     f_stubs = ", ".join(stubs)
     warn(
-        f"Array module {xp.__name__} does not have "
-        f"the following dtypes in its namespace: {f_stubs}.",
+        f"Array module {xp} does not have the following "
+        f"dtypes in its namespace: {f_stubs}",
         HypothesisWarning,
     )
 
@@ -144,8 +143,7 @@ def dtype_from_name(xp, name: str) -> Type[DataType]:
             return getattr(xp, name)
         except AttributeError as e:
             raise InvalidArgument(
-                f"Array module {xp.__name__} does not have "
-                f"dtype {name} in its namespace"
+                f"Array module {xp} does not have dtype {name} in its namespace"
             ) from e
     else:
         f_valid_dtypes = ", ".join(DTYPE_NAMES)
@@ -155,6 +153,45 @@ def dtype_from_name(xp, name: str) -> Type[DataType]:
         )
 
 
+class PrettyArrayModule:
+    def __init__(self, xp):
+        self._xp = xp
+        if hasattr(xp, "_xp"):
+            raise NotImplementedError(f"Array module {xp} cannot have attribute _xp")
+
+    def __getattr__(self, name):
+        return getattr(self._xp, name)
+
+    def __repr__(self):
+        try:
+            return self._xp.__name__
+        except AttributeError:
+            return repr(self._xp)
+
+    def __str__(self):
+        return repr(self)
+
+
+def pretty_xp_repr(func):
+    """Wraps array module so it will have a pretty repr() and str().
+
+    This namely prevents returned strategies having an ugly repr by way of the
+    the defines_strategy decorator, which wraps the strategy in a LazyStrategy.
+    A nice side effect is errors and warnings are easier to write.
+
+    If ``xp`` is already a PrettyArrayModule then this behaviour is skipped.
+    This prevents wrapped modules being wrapped again, which would happen when
+    using the decorated strategies in practice.
+    """
+    @wraps(func)
+    def inner(xp, *args, **kwargs):
+        if not isinstance(xp, PrettyArrayModule):
+            xp = PrettyArrayModule(xp)
+        return func(xp, *args, **kwargs)
+    return inner
+
+
+@pretty_xp_repr
 @defines_strategy(force_reusable_values=True)
 def from_dtype(
     xp,
@@ -376,6 +413,7 @@ class ArrayStrategy(st.SearchStrategy):
         return result
 
 
+@pretty_xp_repr
 @defines_strategy(force_reusable_values=True)
 def arrays(
     xp,
@@ -537,13 +575,14 @@ def check_dtypes(xp, dtypes: List[Type[DataType]], stubs: List[str]):
     if len(dtypes) == 0:
         f_stubs = ", ".join(stubs)
         raise InvalidArgument(
-            f"Array module {xp.__name__} does not have "
-            f"the following required dtypes in its namespace: {f_stubs}"
+            f"Array module {xp} does not have the following "
+            f"required dtypes in its namespace: {f_stubs}"
         )
     elif len(stubs) > 0:
         warn_on_missing_dtypes(xp, stubs)
 
 
+@pretty_xp_repr
 @defines_strategy()
 def scalar_dtypes(xp) -> st.SearchStrategy[Type[DataType]]:
     """Return a strategy for all :array-ref:`valid dtype <data_types.html>` objects."""
@@ -553,6 +592,7 @@ def scalar_dtypes(xp) -> st.SearchStrategy[Type[DataType]]:
     return st.sampled_from(dtypes)
 
 
+@pretty_xp_repr
 @defines_strategy()
 def boolean_dtypes(xp) -> st.SearchStrategy[Type[Boolean]]:
     infer_xp_is_compliant(xp)
@@ -560,11 +600,11 @@ def boolean_dtypes(xp) -> st.SearchStrategy[Type[Boolean]]:
         return st.just(xp.bool)
     except AttributeError:
         raise InvalidArgument(
-            f"Array module {xp.__name__} does not have "
-            f"a bool dtype in its namespace"
+            f"Array module {xp} does not have a bool dtype in its namespace"
         ) from None
 
 
+@pretty_xp_repr
 @defines_strategy()
 def numeric_dtypes(xp) -> st.SearchStrategy[Type[Numeric]]:
     """Return a strategy for all numeric dtype objects."""
@@ -593,6 +633,7 @@ def numeric_dtype_names(base_name: str, sizes: Sequence[int]):
         yield f"{base_name}{size}"
 
 
+@pretty_xp_repr
 @defines_strategy()
 def integer_dtypes(
     xp, *, sizes: Union[int, Sequence[int]] = (8, 16, 32, 64)
@@ -613,6 +654,7 @@ def integer_dtypes(
     return st.sampled_from(dtypes)
 
 
+@pretty_xp_repr
 @defines_strategy()
 def unsigned_integer_dtypes(
     xp, *, sizes: Union[int, Sequence[int]] = (8, 16, 32, 64)
@@ -636,6 +678,7 @@ def unsigned_integer_dtypes(
     return st.sampled_from(dtypes)
 
 
+@pretty_xp_repr
 @defines_strategy()
 def floating_dtypes(
     xp, *, sizes: Union[int, Sequence[int]] = (32, 64)
@@ -1095,6 +1138,7 @@ def indices(
     )
 
 
+@pretty_xp_repr
 def get_strategies_namespace(xp) -> SimpleNamespace:
     """Creates a strategies namespace for the passed array module.
 
