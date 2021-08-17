@@ -138,6 +138,7 @@ def test_can_minimize_large_arrays():
         assert nonzero_count in (1, array.size - 1)
 
 
+@pytest.mark.filterwarnings("ignore::RuntimeWarning")
 @flaky(max_runs=50, min_passes=1)
 def test_can_minimize_float_arrays():
     smallest = minimal(xps.arrays(xp.float32, 50), lambda x: xp.sum(x) >= 1.0)
