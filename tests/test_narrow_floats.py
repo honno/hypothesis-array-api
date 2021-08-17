@@ -2,11 +2,7 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from hypothesis_array import get_strategies_namespace
-
-from .xputils import xp
-
-xps = get_strategies_namespace(xp)
+from .xputils import xp, xps
 
 
 @pytest.mark.parametrize("dtype", [xp.float32, xp.float64])

@@ -7,28 +7,30 @@ from hypothesis_array import *
 from hypothesis_array import (DTYPE_NAMES, FLOAT_NAMES, INT_NAMES,
                               NUMERIC_NAMES, UINT_NAMES, infer_xp_is_compliant)
 
-from .xputils import create_array_module
+from .xputils import MOCK_NAME, create_array_module
 
 
 def test_warning_on_noncompliant_xp():
     xp = create_array_module()
-    with pytest.warns(HypothesisWarning):
+    with pytest.warns(HypothesisWarning, match=f"determine.*{MOCK_NAME}.*Array API"):
         infer_xp_is_compliant(xp)
 
 
+@pytest.mark.filterwarnings(f"ignore:.*determine.*{MOCK_NAME}.*Array API.*")
 @pytest.mark.parametrize(
     "func, args, attr",
     [(from_dtype, ["int8"], "iinfo"), (arrays, ["int8", 5], "full")],
 )
 def test_error_on_missing_attr(func, args, attr):
     xp = create_array_module(exclude=(attr,))
-    with pytest.raises(InvalidArgument, match="does not have required attributes"):
+    with pytest.raises(InvalidArgument, match=f"{MOCK_NAME}.*required.*attribute"):
         func(xp, *args).example()
 
 
 dtypeless_xp = create_array_module(exclude=tuple(DTYPE_NAMES))
 
 
+@pytest.mark.filterwarnings(f"ignore:.*determine.*{MOCK_NAME}.*Array API.*")
 @pytest.mark.parametrize(
     "func",
     [
@@ -41,10 +43,11 @@ dtypeless_xp = create_array_module(exclude=tuple(DTYPE_NAMES))
     ]
 )
 def test_error_on_missing_dtypes(func):
-    with pytest.raises(InvalidArgument):
+    with pytest.raises(InvalidArgument, match=f"{MOCK_NAME}.*dtype.*namespace"):
         func(dtypeless_xp).example()
 
 
+@pytest.mark.filterwarnings(f"ignore:.*determine.*{MOCK_NAME}.*Array API.*")
 @pytest.mark.parametrize(
     "func, keep_any",
     [
@@ -66,5 +69,5 @@ def test_warning_on_partial_dtypes(func, keep_any, data):
         )
     )
     xp = create_array_module(exclude=tuple(exclude))
-    with pytest.warns(HypothesisWarning):
+    with pytest.warns(HypothesisWarning, match=f"{MOCK_NAME}.*dtype.*namespace"):
         data.draw(func(xp))

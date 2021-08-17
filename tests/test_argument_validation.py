@@ -1,11 +1,7 @@
 import pytest
 from hypothesis.errors import InvalidArgument
 
-from hypothesis_array import get_strategies_namespace
-
-from .xputils import xp
-
-xps = get_strategies_namespace(xp)
+from .xputils import xp, xps
 
 
 def e(a, **kwargs):

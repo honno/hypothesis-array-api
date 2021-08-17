@@ -1,12 +1,8 @@
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from hypothesis_array import get_strategies_namespace
-
 from .common.debug import minimal
-from .xputils import xp
-
-xps = get_strategies_namespace(xp)
+from .xputils import xp, xps
 
 
 @given(xps.valid_tuple_axes(3))

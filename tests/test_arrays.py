@@ -5,13 +5,11 @@ from hypothesis import assume, given
 from hypothesis import strategies as st
 from hypothesis.errors import InvalidArgument, Unsatisfiable
 
-from hypothesis_array import DTYPE_NAMES, get_strategies_namespace
+from hypothesis_array import DTYPE_NAMES
 
 from .common.debug import find_any, minimal
 from .common.utils import fails_with, flaky
-from .xputils import XP_IS_COMPLIANT, xp
-
-xps = get_strategies_namespace(xp)
+from .xputils import XP_IS_COMPLIANT, xp, xps
 
 
 def check_array_namespace(array):

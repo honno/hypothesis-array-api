@@ -6,12 +6,10 @@ from hypothesis import HealthCheck, assume, given, note, settings
 from hypothesis import strategies as st
 from hypothesis.errors import InvalidArgument
 
-from hypothesis_array import Shape, get_strategies_namespace
+from hypothesis_array import Shape
 
 from .common.debug import find_any, minimal
-from .xputils import xp
-
-xps = get_strategies_namespace(xp)
+from .xputils import xp, xps
 
 ANY_SHAPE = xps.array_shapes(min_dims=0, max_dims=32, min_side=0, max_side=32)
 ANY_NONZERO_SHAPE = xps.array_shapes(min_dims=0, max_dims=32, min_side=1, max_side=32)

@@ -2,10 +2,7 @@ import pytest
 
 from hypothesis_array import *
 
-from .xputils import create_array_module
-
-xp = create_array_module(assign=(("__name__", "mockpy"),))
-xps = get_strategies_namespace(xp)
+from .xputils import xp, xps
 
 
 @pytest.mark.parametrize(
@@ -58,5 +55,5 @@ def test_namespaced_methods_wrapped(name):
 def test_xp_strategies_pretty_repr(name, strat):
     """Strategies that take xp use its __name__ for their own repr."""
     assert repr(strat).startswith(name), f"{name} not in strat repr"
-    assert len(repr(strat)) < 50, "strat repr looks too long"
+    assert len(repr(strat)) < 100, "strat repr looks too long"
     assert xp.__name__ in repr(strat), f"{xp.__name__} not in strat repr"

@@ -15,8 +15,7 @@ To install from source,
 [get Poetry](https://python-poetry.org/docs/#installation)
 and then `poetry install` inside the repository.
 Using `poetry shell` is a good idea for development,
-where you can use `pytest` to run the full test suite
-(note there a lot of expected warnings I need to declutter.)
+where you can use `pytest` to run the full test suite.
 
 ## Quickstart
 

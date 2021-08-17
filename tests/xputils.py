@@ -5,10 +5,36 @@ from typing import Any, Tuple
 
 import numpy as np
 import pytest
+from hypothesis.errors import HypothesisWarning
 
-__all__ = ["xp", "create_array_module", "XP_IS_COMPLIANT"]
+from hypothesis_array import get_strategies_namespace
 
-METHODS_MAP = {
+__all__ = [
+    "xp",
+    "xps",
+    "create_array_module",
+    "MOCK_NAME",
+    "XP_IS_COMPLIANT",
+]
+
+
+MOCK_NAME = "mockpy"
+
+ATTRIBUTES = {
+    "__name__": MOCK_NAME,
+    # dtypes
+    "int8": np.int8,
+    "int16": np.int16,
+    "int32": np.int32,
+    "int64": np.int64,
+    "uint8": np.uint8,
+    "uint16": np.uint16,
+    "uint32": np.uint32,
+    "uint64": np.uint64,
+    "float32": np.float32,
+    "float64": np.float64,
+    "bool": np.bool_,
+    # methods
     "iinfo": np.iinfo,
     "finfo": np.finfo,
     "asarray": np.asarray,
@@ -27,31 +53,8 @@ METHODS_MAP = {
     "isnan": np.isnan,
     "broadcast_arrays": np.broadcast_arrays,
     "logical_or": np.logical_or,
-}
-
-DTYPES_MAP = {
-    "int8": np.int8,
-    "int16": np.int16,
-    "int32": np.int32,
-    "int64": np.int64,
-    "uint8": np.uint8,
-    "uint16": np.uint16,
-    "uint32": np.uint32,
-    "uint64": np.uint64,
-    "float32": np.float32,
-    "float64": np.float64,
-    "bool": np.bool_,
-}
-
-CONSTANTS_MAP = {
+    # constants
     "nan": np.nan,
-}
-
-ATTRS_MAP = {
-    "__name__": "mockpy",
-    **METHODS_MAP,
-    **DTYPES_MAP,
-    **CONSTANTS_MAP,
 }
 
 
@@ -61,7 +64,7 @@ def create_array_module(
     assign: Tuple[Tuple[str, Any], ...] = (),
     exclude: Tuple[str, ...] = (),
 ):
-    attributes = copy(ATTRS_MAP)
+    attributes = copy(ATTRIBUTES)
     for attr in exclude:
         del attributes[attr]
     for attr, val in assign:
@@ -76,7 +79,10 @@ def create_array_module(
 try:
     with pytest.warns(UserWarning):
         from numpy import array_api as xp
+    xps = get_strategies_namespace(xp)
     XP_IS_COMPLIANT = True
 except ImportError:
     xp = create_array_module()
+    with pytest.warns(HypothesisWarning):
+        xps = get_strategies_namespace(xp)
     XP_IS_COMPLIANT = False

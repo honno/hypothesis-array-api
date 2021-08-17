@@ -1,13 +1,10 @@
 import pytest
 from hypothesis import given
 
-from hypothesis_array import (DTYPE_NAMES, INT_NAMES, NUMERIC_NAMES,
-                              UINT_NAMES, get_strategies_namespace)
+from hypothesis_array import DTYPE_NAMES, INT_NAMES, NUMERIC_NAMES, UINT_NAMES
 
 from .common.debug import minimal
-from .xputils import xp
-
-xps = get_strategies_namespace(xp)
+from .xputils import xp, xps
 
 
 @given(xps.scalar_dtypes())

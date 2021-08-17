@@ -2,12 +2,8 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from hypothesis_array import get_strategies_namespace
-
 from .common.debug import find_any, minimal
-from .xputils import xp
-
-xps = get_strategies_namespace(xp)
+from .xputils import xp, xps
 
 
 @given(xps.arrays(xp.bool, (), fill=st.nothing()))
