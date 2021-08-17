@@ -3,8 +3,8 @@ from collections import defaultdict
 from functools import update_wrapper, wraps
 from numbers import Real
 from types import SimpleNamespace
-from typing import (Any, Iterable, List, Mapping, NamedTuple, Optional,
-                    Sequence, Tuple, Type, Union)
+from typing import (Any, Iterable, Iterator, List, Mapping, NamedTuple,
+                    Optional, Sequence, Tuple, Type, Union)
 from warnings import warn
 
 from hypothesis import assume
@@ -50,21 +50,6 @@ NUMERIC_NAMES = ALL_INT_NAMES + FLOAT_NAMES
 DTYPE_NAMES = ["bool"] + NUMERIC_NAMES
 
 
-def partition_attributes_and_stubs(
-    xp,
-    attributes: Iterable[str]
-) -> Tuple[List[Any], List[str]]:
-    non_stubs = []
-    stubs = []
-    for attr in attributes:
-        try:
-            non_stubs.append(getattr(xp, attr))
-        except AttributeError:
-            stubs.append(attr)
-
-    return non_stubs, stubs
-
-
 def infer_xp_is_compliant(xp):
     try:
         array = xp.zeros(1)
@@ -85,6 +70,21 @@ def check_xp_attributes(xp, attributes: List[str]):
         )
 
 
+def partition_attributes_and_stubs(
+    xp,
+    attributes: Iterable[str]
+) -> Tuple[List[Any], List[str]]:
+    non_stubs = []
+    stubs = []
+    for attr in attributes:
+        try:
+            non_stubs.append(getattr(xp, attr))
+        except AttributeError:
+            stubs.append(attr)
+
+    return non_stubs, stubs
+
+
 def warn_on_missing_dtypes(xp, stubs: List[str]):
     f_stubs = ", ".join(stubs)
     warn(
@@ -92,13 +92,6 @@ def warn_on_missing_dtypes(xp, stubs: List[str]):
         f"dtypes in its namespace: {f_stubs}",
         HypothesisWarning,
     )
-
-
-def order_check(name, floor, min_, max_):
-    if floor > min_:
-        raise InvalidArgument(f"min_{name} must be at least {floor} but was {min_}")
-    if min_ > max_:
-        raise InvalidArgument(f"min_{name}={min_} is larger than max_{name}={max_}")
 
 
 def find_castable_builtin_for_dtype(xp, dtype: Type) -> Type[Union[bool, int, float]]:
@@ -318,7 +311,12 @@ class ArrayStrategy(st.SearchStrategy):
             # elements strategy does not produce reusable values), so we must
             # generate a fully dense array with a freshly drawn value for each
             # entry.
+
+            # This could legitimately be a xp.empty, but the performance gains
+            # for that are likely marginal, so there's really not much point
+            # risking undefined behaviour shenanigans.
             result = self.xp.zeros(self.array_size, dtype=self.dtype)
+
             if self.unique:
                 seen = set()
                 elements = cu.many(
@@ -518,6 +516,13 @@ def arrays(
     return ArrayStrategy(xp, elements, dtype, shape, fill, unique)
 
 
+def order_check(name, floor, min_, max_):
+    if floor > min_:
+        raise InvalidArgument(f"min_{name} must be at least {floor} but was {min_}")
+    if min_ > max_:
+        raise InvalidArgument(f"min_{name}={min_} is larger than max_{name}={max_}")
+
+
 @defines_strategy()
 def array_shapes(
     *,
@@ -611,7 +616,7 @@ def check_valid_sizes(category: str, sizes: Sequence[int], valid_sizes: Sequence
         )
 
 
-def numeric_dtype_names(base_name: str, sizes: Sequence[int]):
+def numeric_dtype_names(base_name: str, sizes: Sequence[int]) -> Iterator[str]:
     for size in sizes:
         yield f"{base_name}{size}"
 
