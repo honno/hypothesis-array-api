@@ -4,7 +4,7 @@ from functools import update_wrapper, wraps
 from numbers import Real
 from types import SimpleNamespace
 from typing import (Any, Iterable, List, Mapping, NamedTuple, Optional,
-                    Sequence, Tuple, Type, TypeVar, Union)
+                    Sequence, Tuple, Type, Union)
 from warnings import warn
 
 from hypothesis import assume
@@ -33,13 +33,6 @@ __all__ = [
 ]
 
 
-Boolean = TypeVar("Boolean")
-SignedInteger = TypeVar("SignedInteger")
-UnsignedInteger = TypeVar("UnsignedInteger")
-Float = TypeVar("Float")
-Numeric = Union[SignedInteger, UnsignedInteger, Float]
-DataType = Union[Boolean, Numeric]
-Array = TypeVar("Array")
 Shape = Tuple[int, ...]
 BasicIndex = Tuple[Union[int, slice, None, "ellipsis"], ...]  # noqa: F821
 
@@ -84,10 +77,7 @@ def infer_xp_is_compliant(xp):
 
 
 def check_xp_attributes(xp, attributes: List[str]):
-    missing_attrs = []
-    for attr in attributes:
-        if not hasattr(xp, attr):
-            missing_attrs.append(attr)
+    missing_attrs = [attr for attr in attributes if not hasattr(xp, attr)]
     if len(missing_attrs) > 0:
         f_attrs = ", ".join(missing_attrs)
         raise InvalidArgument(
@@ -111,33 +101,32 @@ def order_check(name, floor, min_, max_):
         raise InvalidArgument(f"min_{name}={min_} is larger than max_{name}={max_}")
 
 
-def find_castable_builtin_for_dtype(
-    xp, dtype: Type[DataType]
-) -> Tuple[Type[Union[bool, int, float]], List[str]]:
-    builtin = None
+def find_castable_builtin_for_dtype(xp, dtype: Type) -> Type[Union[bool, int, float]]:
     stubs = []
 
     try:
         bool_dtype = xp.bool
         if dtype == bool_dtype:
-            builtin = bool
+            return bool
     except AttributeError:
         stubs.append("bool")
 
     int_dtypes, int_stubs = partition_attributes_and_stubs(xp, ALL_INT_NAMES)
     if dtype in int_dtypes:
-        builtin = int
-    stubs.extend(int_stubs)
+        return int
 
     float_dtypes, float_stubs = partition_attributes_and_stubs(xp, FLOAT_NAMES)
     if dtype in float_dtypes:
-        builtin = float
+        return float
+
+    stubs.extend(int_stubs)
     stubs.extend(float_stubs)
+    if len(stubs) > 0:
+        warn_on_missing_dtypes(xp, stubs)
+    raise InvalidArgument("dtype {dtype} not recognised in {xp}")
 
-    return builtin, stubs
 
-
-def dtype_from_name(xp, name: str) -> Type[DataType]:
+def dtype_from_name(xp, name: str) -> Type:
     if name in DTYPE_NAMES:
         try:
             return getattr(xp, name)
@@ -195,7 +184,7 @@ def pretty_xp_repr(func):
 @defines_strategy(force_reusable_values=True)
 def from_dtype(
     xp,
-    dtype: Union[Type[DataType], str],
+    dtype: Union[Type, str],
     *,
     min_value: Optional[Union[int, float]] = None,
     max_value: Optional[Union[int, float]] = None,
@@ -224,16 +213,7 @@ def from_dtype(
 
     if isinstance(dtype, str):
         dtype = dtype_from_name(xp, dtype)
-
-    builtin, stubs = find_castable_builtin_for_dtype(xp, dtype)
-
-    if builtin is None:
-        if len(stubs) > 0:
-            warn_on_missing_dtypes(xp, stubs)
-        raise InvalidArgument(f"No strategy inference for {dtype}")
-
-    if builtin is bool:
-        return st.booleans()
+    builtin = find_castable_builtin_for_dtype(xp, dtype)
 
     def check_min_value(info_obj):
         assert isinstance(min_value, Real)
@@ -251,7 +231,9 @@ def from_dtype(
                 f"to be at most {info_obj.max}"
             )
 
-    if builtin is int:
+    if builtin is bool:
+        return st.booleans()
+    elif builtin is int:
         iinfo = xp.iinfo(dtype)
         kw = {}
         if min_value is None:
@@ -265,8 +247,7 @@ def from_dtype(
             check_max_value(iinfo)
             kw["max_value"] = max_value
         return st.integers(**kw)
-
-    if builtin is float:
+    else:
         finfo = xp.finfo(dtype)
         kw = {}
         # Whilst we know the boundary values of float dtypes we do not assign
@@ -299,7 +280,7 @@ class ArrayStrategy(st.SearchStrategy):
         self.fill = fill
         self.unique = unique
         self.array_size = math.prod(shape)
-        self.builtin, _ = find_castable_builtin_for_dtype(xp, dtype)
+        self.builtin = find_castable_builtin_for_dtype(xp, dtype)
 
     def set_value(self, result, i, val, strategy=None):
         strategy = strategy or self.elements_strategy
@@ -420,15 +401,13 @@ class ArrayStrategy(st.SearchStrategy):
 @defines_strategy(force_reusable_values=True)
 def arrays(
     xp,
-    dtype: Union[
-        Type[DataType], str, st.SearchStrategy[Type[DataType]], st.SearchStrategy[str]
-    ],
+    dtype: Union[Type, str, st.SearchStrategy[Type], st.SearchStrategy[str]],
     shape: Union[int, Shape, st.SearchStrategy[Shape]],
     *,
     elements: Optional[st.SearchStrategy] = None,
     fill: Optional[st.SearchStrategy[Any]] = None,
     unique: bool = False,
-) -> st.SearchStrategy[Array]:
+) -> st.SearchStrategy:
     """Returns a strategy for :array-ref:`arrays <array_object.html>`.
 
     * ``dtype`` may be a :array-ref:`valid dtype <data_types.html>` object or
@@ -529,6 +508,7 @@ def arrays(
     check_strategy(elements, "elements")
 
     if fill is None:
+        assert isinstance(elements, st.SearchStrategy)
         if unique or not elements.has_reusable_values:
             fill = st.nothing()
         else:
@@ -574,7 +554,7 @@ def array_shapes(
     ).map(tuple)
 
 
-def check_dtypes(xp, dtypes: List[Type[DataType]], stubs: List[str]):
+def check_dtypes(xp, dtypes: List[Type], stubs: List[str]):
     if len(dtypes) == 0:
         f_stubs = ", ".join(stubs)
         raise InvalidArgument(
@@ -587,7 +567,7 @@ def check_dtypes(xp, dtypes: List[Type[DataType]], stubs: List[str]):
 
 @pretty_xp_repr
 @defines_strategy()
-def scalar_dtypes(xp) -> st.SearchStrategy[Type[DataType]]:
+def scalar_dtypes(xp) -> st.SearchStrategy[Type]:
     """Return a strategy for all :array-ref:`valid dtype <data_types.html>` objects."""
     infer_xp_is_compliant(xp)
     dtypes, stubs = partition_attributes_and_stubs(xp, DTYPE_NAMES)
@@ -597,7 +577,7 @@ def scalar_dtypes(xp) -> st.SearchStrategy[Type[DataType]]:
 
 @pretty_xp_repr
 @defines_strategy()
-def boolean_dtypes(xp) -> st.SearchStrategy[Type[Boolean]]:
+def boolean_dtypes(xp) -> st.SearchStrategy[Type]:
     infer_xp_is_compliant(xp)
     try:
         return st.just(xp.bool)
@@ -609,7 +589,7 @@ def boolean_dtypes(xp) -> st.SearchStrategy[Type[Boolean]]:
 
 @pretty_xp_repr
 @defines_strategy()
-def numeric_dtypes(xp) -> st.SearchStrategy[Type[Numeric]]:
+def numeric_dtypes(xp) -> st.SearchStrategy[Type]:
     """Return a strategy for all numeric dtype objects."""
     infer_xp_is_compliant(xp)
     dtypes, stubs = partition_attributes_and_stubs(xp, NUMERIC_NAMES)
@@ -640,7 +620,7 @@ def numeric_dtype_names(base_name: str, sizes: Sequence[int]):
 @defines_strategy()
 def integer_dtypes(
     xp, *, sizes: Union[int, Sequence[int]] = (8, 16, 32, 64)
-) -> st.SearchStrategy[Type[SignedInteger]]:
+) -> st.SearchStrategy[Type]:
     """Return a strategy for signed integer dtype objects.
 
     ``sizes`` contains the signed integer sizes in bits, defaulting to
@@ -661,7 +641,7 @@ def integer_dtypes(
 @defines_strategy()
 def unsigned_integer_dtypes(
     xp, *, sizes: Union[int, Sequence[int]] = (8, 16, 32, 64)
-) -> st.SearchStrategy[Type[UnsignedInteger]]:
+) -> st.SearchStrategy[Type]:
     """Return a strategy for unsigned integer dtype objects.
 
     ``sizes`` contains the unsigned integer sizes in bits, defaulting to
@@ -685,7 +665,7 @@ def unsigned_integer_dtypes(
 @defines_strategy()
 def floating_dtypes(
     xp, *, sizes: Union[int, Sequence[int]] = (32, 64)
-) -> st.SearchStrategy[Type[Float]]:
+) -> st.SearchStrategy[Type]:
     """Return a strategy for floating-point dtype objects.
 
     ``sizes`` contains the floating-point sizes in bits, defaulting to
