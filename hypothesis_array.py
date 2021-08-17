@@ -951,11 +951,11 @@ def mutually_broadcastable_shapes(
         ... strat = mutually_broadcastable_shapes(num_shapes=3, base_shape=(2, 3))
         >>> for _ in range(5):
         ...     print(strat.example())
-        BroadcastableShapes(input_shapes=((4, 1, 3), (4, 2, 3), ()), result_shape=(4, 2, 3))
         BroadcastableShapes(input_shapes=((3,), (1,), (2, 1)), result_shape=(2, 3))
         BroadcastableShapes(input_shapes=((3,), (1, 3), (2, 3)), result_shape=(2, 3))
         BroadcastableShapes(input_shapes=((), (), ()), result_shape=(2, 3))
         BroadcastableShapes(input_shapes=((3,), (), (3,)), result_shape=(2, 3))
+        BroadcastableShapes(input_shapes=((1, 2, 3), (3,), ()), result_shape=(1, 2, 3))
 
     """
 
