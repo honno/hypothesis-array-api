@@ -12,7 +12,7 @@ from hypothesis.strategies._internal.core import (from_type,
 from hypothesis.strategies._internal.types import _global_type_lookup
 
 try:
-    from pytest import raises
+    import pytest
 except ModuleNotFoundError:
     # We are currently running under a test framework other than pytest,
     # so use our own simplified implementation of `pytest.raises`.
@@ -86,7 +86,7 @@ def fails_with(e):
             # the `raises` context manager so that any problems in rigging the
             # PRNG don't accidentally count as the expected failure.
             with deterministic_PRNG():
-                with raises(e):
+                with pytest.raises(e):
                     f(*arguments, **kwargs)
 
         return inverted_test
@@ -167,7 +167,7 @@ def assert_falsifying_output(
             # Some tests want to check the output of non-failing runs.
             test()
         else:
-            with raises(expected_exception):
+            with pytest.raises(expected_exception):
                 test()
 
     output = out.getvalue()

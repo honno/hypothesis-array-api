@@ -1,17 +1,26 @@
 from math import prod
 
+import pytest
 from hypothesis import assume, given
 from hypothesis import strategies as st
 from hypothesis.errors import InvalidArgument, Unsatisfiable
-from pytest import mark, raises
 
 from hypothesis_array import DTYPE_NAMES, get_strategies_namespace
 
 from .common.debug import find_any, minimal
 from .common.utils import fails_with, flaky
-from .xputils import xp
+from .xputils import XP_IS_COMPLIANT, xp
 
 xps = get_strategies_namespace(xp)
+
+
+def check_array_namespace(array):
+    """Check array has __array_namespace__() and it returns the correct module.
+
+    This check is skipped if a mock array module is being used.
+    """
+    if XP_IS_COMPLIANT:
+        assert array.__array_namespace__() == xp
 
 
 @given(st.data())
@@ -19,14 +28,14 @@ def test_can_generate_arrays_from_scalars(data):
     dtype = data.draw(xps.scalar_dtypes())
     array = data.draw(xps.arrays(dtype, ()))
     assert array.dtype == dtype
-    # TODO check array.__array_namespace__()
+    check_array_namespace(array)
 
 
 @given(st.sampled_from(DTYPE_NAMES), st.data())
 def test_can_generate_arrays_from_scalar_names(name, data):
     array = data.draw(xps.arrays(name, ()))
     assert array.dtype == getattr(xp, name)
-    # TODO check array.__array_namespace__()
+    check_array_namespace(array)
 
 
 @given(st.data())
@@ -36,7 +45,7 @@ def test_can_generate_arrays_from_shapes(data):
     assert array.ndim == len(shape)
     assert array.shape == shape
     assert array.size == prod(shape)
-    # TODO check array.__array_namespace__()
+    check_array_namespace(array)
 
 
 @given(st.integers(0, 10), st.data())
@@ -46,7 +55,7 @@ def test_can_generate_arrays_from_int_shapes(size, data):
     assert array.ndim == 1
     assert array.shape == (size,)
     assert array.size == size
-    # TODO check array.__array_namespace__()
+    check_array_namespace(array)
 
 
 @given(st.data())
@@ -59,7 +68,7 @@ def test_can_draw_arrays_from_scalar_strategies(data):
         xps.floating_dtypes(),
     ]))
     array = data.draw(xps.arrays(strat, ()))  # noqa
-    # TODO check array.__array_namespace__()
+    check_array_namespace(array)
 
 
 @given(
@@ -67,19 +76,19 @@ def test_can_draw_arrays_from_scalar_strategies(data):
 )
 def test_can_draw_arrays_from_scalar_name_strategies(names, data):
     array = data.draw(xps.arrays(st.sampled_from(names), ()))  # noqa
-    # TODO check array.__array_namespace__()
+    check_array_namespace(array)
 
 
 @given(xps.arrays(xp.bool, xps.array_shapes()))
 def test_can_draw_arrays_from_shapes_strategy(array):
     assert array.dtype == xp.bool
-    # TODO check array.__array_namespace__()
+    check_array_namespace(array)
 
 
 @given(xps.arrays(xp.bool, st.integers(0, 100)))
 def test_can_draw_arrays_from_integers_strategy_as_shape(array):
     assert array.dtype == xp.bool
-    # TODO check array.__array_namespace__()
+    check_array_namespace(array)
 
 
 @given(xps.arrays(xp.bool, ()))
@@ -87,7 +96,7 @@ def test_empty_dimensions_are_arrays(array):
     assert array.dtype == xp.bool
     assert array.ndim == 0
     assert array.shape == ()
-    # TODO check array.__array_namespace__()
+    check_array_namespace(array)
 
 
 @given(xps.arrays(xp.bool, (1, 0, 1)))
@@ -147,13 +156,13 @@ def test_array_values_are_unique(array):
 
 def test_cannot_generate_unique_array_of_too_many_elements():
     strat = xps.arrays(xp.int8, 10, elements=st.integers(0, 5), unique=True)
-    with raises(Unsatisfiable):
+    with pytest.raises(Unsatisfiable):
         strat.example()
 
 
 def test_cannot_fill_with_non_castable_value():
     strat = xps.arrays(xp.int8, 10, fill=st.just("not a castable value"))
-    with raises(InvalidArgument):
+    with pytest.raises(InvalidArgument):
         strat.example()
 
 
@@ -210,7 +219,7 @@ def test_may_not_fill_with_non_nan_when_unique_is_set(_):
     pass
 
 
-@mark.parametrize(
+@pytest.mark.parametrize(
     "kwargs",
     [
         {"elements": st.just(300)},
@@ -224,8 +233,8 @@ def test_may_not_use_overflowing_integers(kwargs, data):
     data.draw(strat)
 
 
-@mark.parametrize("fill", [False, True])
-@mark.parametrize(
+@pytest.mark.parametrize("fill", [False, True])
+@pytest.mark.parametrize(
     "dtype, strat",
     [
         (xp.float32, st.floats(min_value=10 ** 40, allow_infinity=False)),

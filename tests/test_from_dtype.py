@@ -2,9 +2,9 @@ import math
 from functools import lru_cache
 from typing import Type, Union
 
+import pytest
 from hypothesis import assume, given, settings
 from hypothesis import strategies as st
-from pytest import mark
 
 from hypothesis_array import (DTYPE_NAMES, INT_NAMES, UINT_NAMES,
                               get_strategies_namespace)
@@ -31,7 +31,7 @@ def builtin_from_dtype_name(name: str) -> Type[Union[bool, int, float]]:
     raise ValueError()
 
 
-@mark.parametrize("name", DTYPE_NAMES)
+@pytest.mark.parametrize("name", DTYPE_NAMES)
 def test_produces_instances_from_dtype(name):
     builtin = builtin_from_dtype_name(name)
     dtype = getattr(xp, name)
@@ -43,7 +43,7 @@ def test_produces_instances_from_dtype(name):
     test_is_builtin()
 
 
-@mark.parametrize("name", DTYPE_NAMES)
+@pytest.mark.parametrize("name", DTYPE_NAMES)
 def test_produces_instances_from_name(name):
     builtin = builtin_from_dtype_name(name)
 
@@ -79,7 +79,7 @@ def test_all_inferred_scalar_strategies_roundtrip(data, dtype):
     assert array[0] == ex
 
 
-@mark.parametrize(
+@pytest.mark.parametrize(
     "dtype, kwargs, predicate",
     [
         # Floating point: bounds, exclusive bounds, and excluding nonfinites

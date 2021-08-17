@@ -1,5 +1,5 @@
+import pytest
 from hypothesis.errors import InvalidArgument
-from pytest import mark, param, raises
 
 from hypothesis_array import get_strategies_namespace
 
@@ -10,10 +10,10 @@ xps = get_strategies_namespace(xp)
 
 def e(a, **kwargs):
     kw = ", ".join(f"{k}={v!r}" for k, v in kwargs.items())
-    return param(a, kwargs, id=f"{a.__name__}({kw})")
+    return pytest.param(a, kwargs, id=f"{a.__name__}({kw})")
 
 
-@mark.parametrize(
+@pytest.mark.parametrize(
     ("function", "kwargs"),
     [
         e(xps.arrays, dtype=xp.int8, shape=(0.5,)),
@@ -181,5 +181,5 @@ def e(a, **kwargs):
     ],
 )
 def test_raise_invalid_argument(function, kwargs):
-    with raises(InvalidArgument):
+    with pytest.raises(InvalidArgument):
         function(**kwargs).example()

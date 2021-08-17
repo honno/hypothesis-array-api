@@ -1,6 +1,6 @@
+import pytest
 from hypothesis import given
 from hypothesis import strategies as st
-from pytest import skip
 
 from hypothesis_array import get_strategies_namespace
 
@@ -45,7 +45,7 @@ def test_may_reuse_distinct_integers_if_asked():
             lambda x: nunique(x) < len(x),
         )
     else:
-        skip()
+        pytest.skip()
 
 
 def test_minimizes_to_fill():

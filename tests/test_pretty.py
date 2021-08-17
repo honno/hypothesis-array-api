@@ -1,4 +1,4 @@
-from pytest import mark
+import pytest
 
 from hypothesis_array import *
 
@@ -8,7 +8,7 @@ xp = create_array_module(assign=(("__name__", "mockpy"),))
 xps = get_strategies_namespace(xp)
 
 
-@mark.parametrize(
+@pytest.mark.parametrize(
     "name",
     [
         "from_dtype",
@@ -32,7 +32,7 @@ def test_namespaced_methods_wrapped(name):
     assert func.__name__ == name
 
 
-@mark.parametrize(
+@pytest.mark.parametrize(
     "name, strat",
     [
         # Generic strategies

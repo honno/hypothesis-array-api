@@ -1,5 +1,5 @@
+import pytest
 from hypothesis import given
-from pytest import mark
 
 from hypothesis_array import (DTYPE_NAMES, INT_NAMES, NUMERIC_NAMES,
                               UINT_NAMES, get_strategies_namespace)
@@ -44,7 +44,7 @@ def test_minimise_scalar_dtypes():
     assert minimal(xps.scalar_dtypes()) == xp.bool
 
 
-@mark.parametrize(
+@pytest.mark.parametrize(
     "strat_func, sizes",
     [
         (xps.integer_dtypes, 8),

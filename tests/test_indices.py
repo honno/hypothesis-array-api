@@ -1,8 +1,8 @@
 import math
 
+import pytest
 from hypothesis import assume, given
 from hypothesis import strategies as st
-from pytest import mark
 
 from hypothesis_array import get_strategies_namespace
 
@@ -12,7 +12,7 @@ from .xputils import xp
 xps = get_strategies_namespace(xp)
 
 
-@mark.parametrize(
+@pytest.mark.parametrize(
     "condition",
     [
         lambda ix: Ellipsis in ix,

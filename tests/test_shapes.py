@@ -1,10 +1,10 @@
 from functools import reduce
 from itertools import zip_longest
 
+import pytest
 from hypothesis import HealthCheck, assume, given, note, settings
 from hypothesis import strategies as st
 from hypothesis.errors import InvalidArgument
-from pytest import mark, raises
 
 from hypothesis_array import Shape, get_strategies_namespace
 
@@ -37,7 +37,7 @@ def test_minimise_array_shapes(min_dims, dim_range, min_side, side_range):
     assert len(smallest) == min_dims and all(k == min_side for k in smallest)
 
 
-@mark.parametrize(
+@pytest.mark.parametrize(
     "kwargs", [{"min_side": 100}, {"min_dims": 15}, {"min_dims": 32}]
 )
 def test_interesting_array_shapes_argument(kwargs):
@@ -140,7 +140,7 @@ def test_broadcastable_shape_util(shapes):
     try:
         broadcast_out = xp.broadcast_arrays(*arrays)
     except ValueError:
-        with raises(ValueError):
+        with pytest.raises(ValueError):
             _broadcast_shapes(*shapes)
         return
     broadcasted_shape = _broadcast_shapes(*shapes)

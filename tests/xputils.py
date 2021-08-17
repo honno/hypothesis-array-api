@@ -4,8 +4,9 @@ from types import SimpleNamespace
 from typing import Any, Tuple
 
 import numpy as np
+import pytest
 
-__all__ = ["xp", "create_array_module"]
+__all__ = ["xp", "create_array_module", "XP_IS_COMPLIANT"]
 
 METHODS_MAP = {
     "iinfo": np.iinfo,
@@ -68,7 +69,14 @@ def create_array_module(
     return SimpleNamespace(**attributes)
 
 
+# We try importing the Array API namespace from NumPy first, which modern
+# versions should include. If not available we default to our own mocked module,
+# which should allow our test suite to still work. A constant is set accordingly
+# to inform our test suite of whether the array module here is a mock or not.
 try:
-    from numpy import array_api as xp
+    with pytest.warns(UserWarning):
+        from numpy import array_api as xp
+    XP_IS_COMPLIANT = True
 except ImportError:
     xp = create_array_module()
+    XP_IS_COMPLIANT = False
