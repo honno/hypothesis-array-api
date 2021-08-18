@@ -575,9 +575,7 @@ def check_dtypes(xp, dtypes: List[Type], stubs: List[str]):
 def scalar_dtypes(xp) -> st.SearchStrategy[Type]:
     """Return a strategy for all :array-ref:`valid dtype <data_types.html>` objects."""
     infer_xp_is_compliant(xp)
-    dtypes, stubs = partition_attributes_and_stubs(xp, DTYPE_NAMES)
-    check_dtypes(xp, dtypes, stubs)
-    return st.sampled_from(dtypes)
+    return st.one_of(boolean_dtypes(xp), numeric_dtypes(xp))
 
 
 @pretty_xp_repr
@@ -597,9 +595,11 @@ def boolean_dtypes(xp) -> st.SearchStrategy[Type]:
 def numeric_dtypes(xp) -> st.SearchStrategy[Type]:
     """Return a strategy for all numeric dtype objects."""
     infer_xp_is_compliant(xp)
-    dtypes, stubs = partition_attributes_and_stubs(xp, NUMERIC_NAMES)
-    check_dtypes(xp, dtypes, stubs)
-    return st.sampled_from(dtypes)
+    return st.one_of(
+        integer_dtypes(xp),
+        unsigned_integer_dtypes(xp),
+        floating_dtypes(xp),
+    )
 
 
 def check_valid_sizes(category: str, sizes: Sequence[int], valid_sizes: Sequence[int]):
