@@ -12,13 +12,13 @@ from .common.utils import fails_with, flaky
 from .xputils import XP_IS_COMPLIANT, xp, xps
 
 
-def check_array_namespace(array):
+def assert_array_namespace(array):
     """Check array has __array_namespace__() and it returns the correct module.
 
     This check is skipped if a mock array module is being used.
     """
     if XP_IS_COMPLIANT:
-        assert array.__array_namespace__() == xp
+        assert array.__array_namespace__() is xp
 
 
 @given(st.data())
@@ -26,14 +26,14 @@ def test_can_generate_arrays_from_scalars(data):
     dtype = data.draw(xps.scalar_dtypes())
     array = data.draw(xps.arrays(dtype, ()))
     assert array.dtype == dtype
-    check_array_namespace(array)
+    assert_array_namespace(array)
 
 
 @given(st.sampled_from(DTYPE_NAMES), st.data())
 def test_can_generate_arrays_from_scalar_names(name, data):
     array = data.draw(xps.arrays(name, ()))
     assert array.dtype == getattr(xp, name)
-    check_array_namespace(array)
+    assert_array_namespace(array)
 
 
 @given(st.data())
@@ -43,7 +43,7 @@ def test_can_generate_arrays_from_shapes(data):
     assert array.ndim == len(shape)
     assert array.shape == shape
     assert array.size == prod(shape)
-    check_array_namespace(array)
+    assert_array_namespace(array)
 
 
 @given(st.integers(0, 10), st.data())
@@ -53,7 +53,7 @@ def test_can_generate_arrays_from_int_shapes(size, data):
     assert array.ndim == 1
     assert array.shape == (size,)
     assert array.size == size
-    check_array_namespace(array)
+    assert_array_namespace(array)
 
 
 @given(st.data())
@@ -66,7 +66,7 @@ def test_can_draw_arrays_from_scalar_strategies(data):
         xps.floating_dtypes(),
     ]))
     array = data.draw(xps.arrays(strat, ()))  # noqa
-    check_array_namespace(array)
+    assert_array_namespace(array)
 
 
 @given(
@@ -74,19 +74,19 @@ def test_can_draw_arrays_from_scalar_strategies(data):
 )
 def test_can_draw_arrays_from_scalar_name_strategies(names, data):
     array = data.draw(xps.arrays(st.sampled_from(names), ()))  # noqa
-    check_array_namespace(array)
+    assert_array_namespace(array)
 
 
 @given(xps.arrays(xp.bool, xps.array_shapes()))
 def test_can_draw_arrays_from_shapes_strategy(array):
     assert array.dtype == xp.bool
-    check_array_namespace(array)
+    assert_array_namespace(array)
 
 
 @given(xps.arrays(xp.bool, st.integers(0, 100)))
 def test_can_draw_arrays_from_integers_strategy_as_shape(array):
     assert array.dtype == xp.bool
-    check_array_namespace(array)
+    assert_array_namespace(array)
 
 
 @given(xps.arrays(xp.bool, ()))
@@ -94,7 +94,7 @@ def test_empty_dimensions_are_arrays(array):
     assert array.dtype == xp.bool
     assert array.ndim == 0
     assert array.shape == ()
-    check_array_namespace(array)
+    assert_array_namespace(array)
 
 
 @given(xps.arrays(xp.bool, (1, 0, 1)))
