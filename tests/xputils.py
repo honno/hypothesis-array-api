@@ -1,7 +1,7 @@
 from copy import copy
 from functools import lru_cache
 from types import SimpleNamespace
-from typing import Any, Tuple
+from typing import Tuple
 
 import numpy as np
 import pytest
@@ -22,7 +22,7 @@ MOCK_NAME = "mockpy"
 
 ATTRIBUTES = {
     "__name__": MOCK_NAME,
-    # dtypes
+    # Data types
     "int8": np.int8,
     "int16": np.int16,
     "int32": np.int32,
@@ -34,7 +34,7 @@ ATTRIBUTES = {
     "float32": np.float32,
     "float64": np.float64,
     "bool": np.bool_,
-    # methods
+    # Methods
     "iinfo": np.iinfo,
     "finfo": np.finfo,
     "asarray": np.asarray,
@@ -53,22 +53,16 @@ ATTRIBUTES = {
     "isnan": np.isnan,
     "broadcast_arrays": np.broadcast_arrays,
     "logical_or": np.logical_or,
-    # constants
+    # Constants
     "nan": np.nan,
 }
 
 
 @lru_cache()
-def create_array_module(
-    *,
-    assign: Tuple[Tuple[str, Any], ...] = (),
-    exclude: Tuple[str, ...] = (),
-):
+def create_array_module(*, exclude: Tuple[str, ...] = ()):
     attributes = copy(ATTRIBUTES)
     for attr in exclude:
         del attributes[attr]
-    for attr, val in assign:
-        attributes[attr] = val
     return SimpleNamespace(**attributes)
 
 
