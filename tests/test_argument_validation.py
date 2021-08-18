@@ -177,5 +177,6 @@ def e(a, **kwargs):
     ],
 )
 def test_raise_invalid_argument(function, kwargs):
+    """Strategies raise helpful error with invalid arguments."""
     with pytest.raises(InvalidArgument):
         function(**kwargs).example()

@@ -95,6 +95,11 @@ def warn_on_missing_dtypes(xp, stubs: List[str]):
 
 
 def find_castable_builtin_for_dtype(xp, dtype: Type) -> Type[Union[bool, int, float]]:
+    """Returns builtin type which can have values that are castable to the given
+    dtype, according to :array-ref:`type promotion rules <type_promotion.html>`.
+
+    ``float`` is always returned for floating dtypes, as opposed to ``int``.
+    """
     stubs = []
 
     try:
@@ -1128,7 +1133,7 @@ def indices(
 
 @pretty_xp_repr
 def get_strategies_namespace(xp) -> SimpleNamespace:
-    """Creates a strategies namespace for the passed array module.
+    """Creates a strategies namespace for the given array module.
 
     * ``xp`` is the Array API library to automatically pass to the namespaced methods.
 
