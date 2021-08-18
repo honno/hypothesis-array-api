@@ -1,4 +1,4 @@
-from math import prod
+import math
 
 import pytest
 from hypothesis import assume, given
@@ -21,91 +21,101 @@ def assert_array_namespace(array):
         assert array.__array_namespace__() is xp
 
 
-@given(st.data())
-def test_can_generate_arrays_from_scalars(data):
-    dtype = data.draw(xps.scalar_dtypes())
+@given(xps.scalar_dtypes(), st.data())
+def test_draw_arrays_from_dtype(dtype, data):
+    """Draw arrays from dtypes."""
     array = data.draw(xps.arrays(dtype, ()))
     assert array.dtype == dtype
     assert_array_namespace(array)
 
 
 @given(st.sampled_from(DTYPE_NAMES), st.data())
-def test_can_generate_arrays_from_scalar_names(name, data):
+def test_draw_arrays_from_scalar_names(name, data):
+    """Draw arrays from dtype names."""
     array = data.draw(xps.arrays(name, ()))
     assert array.dtype == getattr(xp, name)
     assert_array_namespace(array)
 
 
-@given(st.data())
-def test_can_generate_arrays_from_shapes(data):
-    shape = data.draw(xps.array_shapes())
-    array = data.draw(xps.arrays(xp.bool, shape))
+@given(xps.array_shapes(), st.data())
+def test_can_draw_arrays_from_shapes(shape, data):
+    """Draw arrays from shapes."""
+    array = data.draw(xps.arrays(xp.int8, shape))
     assert array.ndim == len(shape)
     assert array.shape == shape
-    assert array.size == prod(shape)
+    assert array.size == math.prod(shape)
     assert_array_namespace(array)
 
 
 @given(st.integers(0, 10), st.data())
-def test_can_generate_arrays_from_int_shapes(size, data):
-    array = data.draw(xps.arrays(xp.bool, size))
-
+def test_draw_arrays_from_int_shapes(size, data):
+    """Draw arrays from integers as shapes."""
+    array = data.draw(xps.arrays(xp.int8, size))
     assert array.ndim == 1
     assert array.shape == (size,)
     assert array.size == size
     assert_array_namespace(array)
 
 
-@given(st.data())
-def test_can_draw_arrays_from_scalar_strategies(data):
-    strat = data.draw(st.sampled_from([
+@pytest.mark.parametrize(
+    "strat",
+    [
         xps.scalar_dtypes(),
         xps.boolean_dtypes(),
         xps.integer_dtypes(),
         xps.unsigned_integer_dtypes(),
         xps.floating_dtypes(),
-    ]))
-    array = data.draw(xps.arrays(strat, ()))  # noqa
+    ]
+)
+@given(st.data())
+def test_draw_arrays_from_dtype_strategies(strat, data):
+    """Draw arrays from dtype strategies."""
+    array = data.draw(xps.arrays(strat, ()))
     assert_array_namespace(array)
 
 
 @given(
     st.lists(st.sampled_from(DTYPE_NAMES), min_size=1, unique=True), st.data()
 )
-def test_can_draw_arrays_from_scalar_name_strategies(names, data):
-    array = data.draw(xps.arrays(st.sampled_from(names), ()))  # noqa
+def test_draw_arrays_from_dtype_name_strategies(names, data):
+    """Draw arrays from dtype name strategies."""
+    names_strategy = st.sampled_from(names)
+    array = data.draw(xps.arrays(names_strategy, ()))
     assert_array_namespace(array)
 
 
-@given(xps.arrays(xp.bool, xps.array_shapes()))
-def test_can_draw_arrays_from_shapes_strategy(array):
-    assert array.dtype == xp.bool
+@given(xps.arrays(xp.int8, xps.array_shapes()))
+def test_generate_arrays_from_shapes_strategy(array):
+    """Generate arrays from shapes strategy."""
     assert_array_namespace(array)
 
 
-@given(xps.arrays(xp.bool, st.integers(0, 100)))
-def test_can_draw_arrays_from_integers_strategy_as_shape(array):
-    assert array.dtype == xp.bool
+@given(xps.arrays(xp.int8, st.integers(0, 100)))
+def test_generate_arrays_from_integers_strategy_as_shape(array):
+    """Generate arrays from integers strategy as shapes strategy."""
     assert_array_namespace(array)
 
 
-@given(xps.arrays(xp.bool, ()))
+@given(xps.arrays(xp.int8, ()))
 def test_empty_dimensions_are_arrays(array):
-    assert array.dtype == xp.bool
+    """Values generated from empty shapes are arrays."""
     assert array.ndim == 0
     assert array.shape == ()
     assert_array_namespace(array)
 
 
-@given(xps.arrays(xp.bool, (1, 0, 1)))
-def test_can_handle_zero_dimensions(array):
-    assert array.dtype == xp.bool
+@given(xps.arrays(xp.int8, (1, 0, 1)))
+def test_handle_zero_dimensions(array):
+    """Generate arrays from shape with a 0-sized dimension."""
     assert array.shape == (1, 0, 1)
+    assert_array_namespace(array)
 
 
 @given(xps.arrays(xp.uint32, (5, 5)))
-def test_generates_unsigned_ints(array):
+def test_generate_arrays_from_unsigned_ints(array):
+    """Generate arrays from unsigned integer dtype."""
     assert xp.all(array >= 0)
+    assert_array_namespace(array)
 
 
 def test_generates_and_minimizes():
@@ -291,7 +301,10 @@ def count_unique(array):
             n_unique += count
             break
 
-    filtered_array = array[~nan_index]  # TODO Array API makes boolean indexing optinal
+    # TODO: The Array API makes boolean indexing optinal, so in the future if we
+    # want to test array modules other than NumPy this will need to be reworked,
+    # or if not possible errors are caught and the test is skipped.
+    filtered_array = array[~nan_index]
     unique_array = xp.unique(filtered_array)
     n_unique += unique_array.size
 
