@@ -1,11 +1,9 @@
-import math
-
 import pytest
 from hypothesis import assume, given
 from hypothesis import strategies as st
 from hypothesis.errors import InvalidArgument, Unsatisfiable
 
-from hypothesis_array import DTYPE_NAMES
+from hypothesis_array import DTYPE_NAMES, NUMERIC_NAMES
 
 from .common.debug import find_any, minimal
 from .common.utils import fails_with, flaky
@@ -43,7 +41,6 @@ def test_can_draw_arrays_from_shapes(shape, data):
     array = data.draw(xps.arrays(xp.int8, shape))
     assert array.ndim == len(shape)
     assert array.shape == shape
-    assert array.size == math.prod(shape)
     assert_array_namespace(array)
 
 
@@ -51,9 +48,7 @@ def test_can_draw_arrays_from_shapes(shape, data):
 def test_draw_arrays_from_int_shapes(size, data):
     """Draw arrays from integers as shapes."""
     array = data.draw(xps.arrays(xp.int8, size))
-    assert array.ndim == 1
     assert array.shape == (size,)
-    assert array.size == size
     assert_array_namespace(array)
 
 
@@ -99,7 +94,6 @@ def test_generate_arrays_from_integers_strategy_as_shape(array):
 @given(xps.arrays(xp.int8, ()))
 def test_empty_dimensions_are_arrays(array):
     """Values generated from empty shapes are arrays."""
-    assert array.ndim == 0
     assert array.shape == ()
     assert_array_namespace(array)
 
@@ -118,49 +112,85 @@ def test_generate_arrays_from_unsigned_ints(array):
     assert_array_namespace(array)
 
 
-def test_generates_and_minimizes():
-    strat = xps.arrays(xp.float32, (2, 2))
-    assert xp.all(minimal(strat) == 0)
-
-
-def test_minimise_array_strategy():
-    smallest = minimal(
-        xps.arrays(xps.scalar_dtypes(), xps.array_shapes(max_dims=3, max_side=3)),
-    )
+def test_minimize_arrays_with_default_dtype_shape_strategies():
+    """Strategy with default scalar_dtypes and array_shapes strategies minimize
+    to a boolean 1-dimensional array of size 1."""
+    smallest = minimal(xps.arrays(xps.scalar_dtypes(), xps.array_shapes()))
+    assert smallest.shape == (1,)
     assert smallest.dtype == xp.bool
     assert not xp.any(smallest)
 
 
-def test_can_minimize_large_arrays():
-    array = minimal(
-        xps.arrays(xp.uint32, 100),
+def test_minimize_arrays_with_0d_shape_strategy():
+    """Strategy with shape strategy that can generate empty tuples minimizes to
+    0d arrays."""
+    smallest = minimal(xps.arrays(xp.int8, xps.array_shapes(min_dims=0)))
+    assert smallest.shape == ()
+
+
+@pytest.mark.parametrize("dtype", NUMERIC_NAMES)
+def test_minimizes_numeric_arrays(dtype):
+    """Strategies with numeric dtypes minimize to zero-filled arrays."""
+    smallest = minimal(xps.arrays(dtype, (2, 2)))
+    assert xp.all(smallest == 0)
+
+
+def test_minimize_large_uint_arrays():
+    """Strategy with uint dtype and largely sized shape minimizes to a good
+    example."""
+    smallest = minimal(
+        xps.arrays(xp.uint8, 100),
         lambda x: xp.any(x) and not xp.all(x),
         timeout_after=60,
     )
-
-    assert xp.all(xp.logical_or(array == 0, array == 1))
-
-    # xp.nonzero() is optional for Array API libraries
+    assert xp.all(xp.logical_or(smallest == 0, smallest == 1))
     if hasattr(xp, "nonzero"):
-        nonzero_count = 0
-        for nonzero_indices in xp.nonzero(array):
-            nonzero_count += nonzero_indices.size
-        assert nonzero_count in (1, array.size - 1)
+        idx = xp.nonzero(smallest)
+        assert smallest[idx].size in (1, smallest.size - 1)
 
 
 @pytest.mark.filterwarnings("ignore::RuntimeWarning")
 @flaky(max_runs=50, min_passes=1)
 def test_can_minimize_float_arrays():
+    """Strategy with float dtype minimizes to a good example.
+
+    We filter runtime warnings and expect flaky array generation for
+    specifically NumPy - this behaviour may not be required when testing
+    with other array libraries.
+    """
     smallest = minimal(xps.arrays(xp.float32, 50), lambda x: xp.sum(x) >= 1.0)
     assert xp.sum(smallest) in (1, 50)
 
 
+def count_unique(array):
+    """Returns the number of unique elements.
+    NaN values are treated as unique to eachother.
+
+    The Array API doesn't specify how ``unique()`` should behave for Nan values,
+    so this method provides consistent behaviour.
+    """
+    n_unique = 0
+
+    nan_index = xp.isnan(array)
+    for isnan, count in zip(*xp.unique(nan_index, return_counts=True)):
+        if isnan:
+            n_unique += count
+            break
+
+    # TODO: The Array API makes boolean indexing optinal, so in the future if we
+    # want to test array modules other than NumPy this will need to be reworked,
+    # or if not possible errors are caught and the test is skipped.
+    filtered_array = array[~nan_index]
+    unique_array = xp.unique(filtered_array)
+    n_unique += unique_array.size
+
+    return n_unique
+
+
 @given(xps.arrays(xp.int8, st.integers(0, 20), unique=True))
 def test_array_values_are_unique(array):
-    # xp.unique() is optional for Array API libraries
     if hasattr(xp, "unique"):
-        unique_values = xp.unique(array)
-        assert unique_values.size == array.size
+        assert count_unique(array) == array.size
 
 
 def test_cannot_generate_unique_array_of_too_many_elements():
@@ -284,31 +314,6 @@ def test_floats_can_be_constrained_at_low_width(array):
 def test_floats_can_be_constrained_at_low_width_excluding_endpoints(array):
     assert xp.all(array > 0)
     assert xp.all(array < 1)
-
-
-def count_unique(array):
-    """Returns the number of unique elements.
-    NaN values are treated as unique to eachother.
-
-    The Array API doesn't specify how ``unique()`` should behave for Nan values,
-    so this method provides consistent behaviour.
-    """
-    n_unique = 0
-
-    nan_index = xp.isnan(array)
-    for isnan, count in zip(*xp.unique(nan_index, return_counts=True)):
-        if isnan:
-            n_unique += count
-            break
-
-    # TODO: The Array API makes boolean indexing optinal, so in the future if we
-    # want to test array modules other than NumPy this will need to be reworked,
-    # or if not possible errors are caught and the test is skipped.
-    filtered_array = array[~nan_index]
-    unique_array = xp.unique(filtered_array)
-    n_unique += unique_array.size
-
-    return n_unique
 
 
 @given(
