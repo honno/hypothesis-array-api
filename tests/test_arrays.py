@@ -92,15 +92,15 @@ def test_generate_arrays_from_integers_strategy_as_shape(array):
 
 
 @given(xps.arrays(xp.int8, ()))
-def test_empty_dimensions_are_arrays(array):
-    """Values generated from empty shapes are arrays."""
+def test_generate_arrays_from_zero_dimensions(array):
+    """Generate arrays from empty shape."""
     assert array.shape == ()
     assert_array_namespace(array)
 
 
 @given(xps.arrays(xp.int8, (1, 0, 1)))
 def test_handle_zero_dimensions(array):
-    """Generate arrays from shape with a 0-sized dimension."""
+    """Generate arrays from empty shape."""
     assert array.shape == (1, 0, 1)
     assert_array_namespace(array)
 
@@ -177,9 +177,9 @@ def count_unique(array):
             n_unique += count
             break
 
-    # TODO: The Array API makes boolean indexing optinal, so in the future if we
-    # want to test array modules other than NumPy this will need to be reworked,
-    # or if not possible errors are caught and the test is skipped.
+    # TODO: The Array API makes boolean indexing optinal, so in the future this
+    # will need to be reworked if we want to test libraries other than NumPy.
+    # If not possible, errors should be caught and the test skipped.
     filtered_array = array[~nan_index]
     unique_array = xp.unique(filtered_array)
     n_unique += unique_array.size
