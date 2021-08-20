@@ -147,8 +147,8 @@ def test_minimize_large_uint_arrays():
     )
     assert xp.all(xp.logical_or(smallest == 0, smallest == 1))
     if hasattr(xp, "nonzero"):
-        idx = xp.nonzero(smallest)
-        assert smallest[idx].size in (1, smallest.size - 1)
+        idx = xp.nonzero(smallest)[0]
+        assert idx.size in (1, smallest.size - 1)
 
 
 @pytest.mark.filterwarnings("ignore::RuntimeWarning")
