@@ -4,6 +4,8 @@ from hypothesis import strategies as st
 
 from .xputils import xp, xps
 
+pytestmark = [pytest.mark.mockable_xp]
+
 
 @pytest.mark.parametrize("dtype", [xp.float32, xp.float64])
 @pytest.mark.parametrize("low", [-2.0, -1.0, 0.0, 1.0])

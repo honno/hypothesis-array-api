@@ -7,6 +7,8 @@ from hypothesis import strategies as st
 from .common.debug import find_any
 from .xputils import xp, xps
 
+pytestmark = [pytest.mark.mockable_xp]
+
 
 @pytest.mark.parametrize(
     "condition",

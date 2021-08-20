@@ -6,6 +6,8 @@ from hypothesis_array import DTYPE_NAMES, INT_NAMES, NUMERIC_NAMES, UINT_NAMES
 from .common.debug import minimal
 from .xputils import xp, xps
 
+pytestmark = [pytest.mark.mockable_xp]
+
 
 @given(xps.scalar_dtypes())
 def test_can_generate_scalar_dtypes(dtype):

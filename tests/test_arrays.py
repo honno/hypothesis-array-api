@@ -7,7 +7,9 @@ from hypothesis_array import DTYPE_NAMES, NUMERIC_NAMES
 
 from .common.debug import find_any, minimal
 from .common.utils import fails_with, flaky
-from .xputils import XP_IS_COMPLIANT, xp, xps
+from .xputils import COMPLIANT_XP, xp, xps
+
+pytestmark = [pytest.mark.mockable_xp]
 
 
 def assert_array_namespace(array):
@@ -15,7 +17,7 @@ def assert_array_namespace(array):
 
     This check is skipped if a mock array module is being used.
     """
-    if XP_IS_COMPLIANT:
+    if COMPLIANT_XP:
         assert array.__array_namespace__() is xp
 
 

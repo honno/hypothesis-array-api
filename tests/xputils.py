@@ -14,7 +14,7 @@ __all__ = [
     "xps",
     "create_array_module",
     "MOCK_NAME",
-    "XP_IS_COMPLIANT",
+    "COMPLIANT_XP",
 ]
 
 
@@ -74,9 +74,9 @@ try:
     with pytest.warns(UserWarning):
         from numpy import array_api as xp
     xps = get_strategies_namespace(xp)
-    XP_IS_COMPLIANT = True
+    COMPLIANT_XP = True
 except ImportError:
     xp = create_array_module()
     with pytest.warns(HypothesisWarning):
         xps = get_strategies_namespace(xp)
-    XP_IS_COMPLIANT = False
+    COMPLIANT_XP = False

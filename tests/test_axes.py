@@ -1,8 +1,11 @@
+import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from .common.debug import minimal
 from .xputils import xp, xps
+
+pytestmark = [pytest.mark.mockable_xp]
 
 
 @given(xps.valid_tuple_axes(3))

@@ -5,6 +5,8 @@ from hypothesis import strategies as st
 from .common.debug import find_any, minimal
 from .xputils import xp, xps
 
+pytestmark = [pytest.mark.mockable_xp]
+
 
 @given(xps.arrays(xp.bool, (), fill=st.nothing()))
 def test_can_generate_0d_arrays_with_no_fill(array):

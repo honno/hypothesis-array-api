@@ -3,6 +3,8 @@ from hypothesis.errors import InvalidArgument
 
 from .xputils import xp, xps
 
+pytestmark = [pytest.mark.mockable_xp]
+
 
 def e(a, **kwargs):
     kw = ", ".join(f"{k}={v!r}" for k, v in kwargs.items())

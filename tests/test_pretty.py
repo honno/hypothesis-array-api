@@ -4,6 +4,8 @@ from hypothesis_array import *
 
 from .xputils import xp, xps
 
+pytestmark = [pytest.mark.mockable_xp]
+
 
 @pytest.mark.parametrize(
     "name",
