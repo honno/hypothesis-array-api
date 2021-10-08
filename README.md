@@ -1,3 +1,8 @@
+These strategies now have first-party support in [`hypothesis.extra.array_api`](https://hypothesis.readthedocs.io/en/latest/numpy.html#array-api),
+so please don't use this package!
+
+---
+
 # Hypothesis strategies for Array API libraries
 
 **Note:** `hypothesis-array-api` uses private APIs from Hypothesis
